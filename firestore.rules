@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function activeRole() {
+      return signedIn() && userDoc().data.status == 'active' ? userDoc().data.role : null;
+    }
+
+    function isAdmin() { return activeRole() == 'admin'; }
+    // manager outranks power_user (see AppRole in lib/core/constants/roles.dart)
+    // and inherits every document-management right power_user has, plus the
+    // "Seen" acknowledgement toggle — so both roles share this check.
+    function canManageDocuments() {
+      return activeRole() == 'admin' || activeRole() == 'manager' || activeRole() == 'power_user';
+    }
+    function isKnownUser() { return activeRole() != null; }
+
+    match /users/{uid} {
+      allow read: if signedIn();
+      // New self-registered accounts land as 'pending', not 'active' — an
+      // Admin must approve them (Manage Users) before activeRole() grants
+      // any read/write access. Prevents anyone who obtains the public
+      // Firebase config (e.g. from a public repo) from self-registering
+      // and immediately reading business data.
+      allow create: if signedIn() && request.auth.uid == uid
+                    && request.resource.data.uid == uid
+                    && request.resource.data.role == 'general_user'
+                    && request.resource.data.status == 'pending';
+      allow update: if signedIn() && (
+                      (request.auth.uid == uid
+                        && request.resource.data.role == resource.data.role
+                        && request.resource.data.status == resource.data.status)
+                      || isAdmin()
+                    );
+      allow delete: if false;
+    }
+
+    match /counters/{counterId} {
+      allow read: if isKnownUser();
+      allow write: if canManageDocuments();
+    }
+
+    match /inward_outward_documents/{docId} {
+      allow read: if isKnownUser();
+      allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if canManageDocuments();
+    }
+
+    match /tenders/{docId} {
+      allow read: if isKnownUser();
+      allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if canManageDocuments();
+    }
+
+    match /work_orders/{docId} {
+      allow read: if isKnownUser();
+      allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if canManageDocuments();
+    }
+
+    match /audit_log/{entryId} {
+      allow read: if isAdmin();
+      allow create: if isKnownUser() && request.resource.data.actorUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Deliberately public read, no signedIn() check — the version gate
+    // (lib/features/version_gate) must be checkable before login, and this
+    // document carries no sensitive data (two version strings + a
+    // message). Write stays admin-only.
+    match /app_config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+  }
+}

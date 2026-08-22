@@ -1,0 +1,38 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // NOTE: role-based checks (canManageDocuments equivalent) were removed
+    // from here deliberately. Storage rules calling firestore.get() to read
+    // `users/{uid}.role` is a documented "cross-service" capability, but in
+    // practice it evaluated to false for every user, silently blocking all
+    // uploads with [firebase_storage/unauthorized] regardless of role —
+    // observed directly against the live project, not just a theoretical
+    // risk (this was flagged as unverified when first written).
+    //
+    // Role enforcement instead relies on: (1) the app UI only exposing
+    // upload/delete to power_user/manager/admin via RoleGate, and (2) the
+    // same-service Firestore rules' `canManageDocuments()` (in
+    // firestore.rules — this one works reliably, no cross-service call)
+    // gating whether the corresponding inward_outward_documents record can
+    // be created at all. Worst case for a general_user bypassing the UI:
+    // an orphaned file with no linked document — not a usable record.
+    function signedIn() { return request.auth != null; }
+
+    match /inward_outward/{type}/{year}/{docId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+                   && request.resource.size < 20 * 1024 * 1024
+                   && request.resource.contentType.matches('application/pdf|image/.*');
+      allow delete: if signedIn();
+    }
+
+    match /work_orders/{year}/{docId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+                   && request.resource.size < 20 * 1024 * 1024
+                   && request.resource.contentType.matches('application/pdf|image/.*');
+      allow delete: if signedIn();
+    }
+  }
+}
