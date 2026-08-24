@@ -130,15 +130,19 @@ class _RoleDropdown extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return DropdownButton<AppRole>(
-      value: user.role,
-      underline: const SizedBox.shrink(),
-      style: const TextStyle(fontSize: 12.8),
-      items: [for (final role in AppRole.values) DropdownMenuItem(value: role, child: Text(role.label))],
-      onChanged: (role) async {
-        if (role == null) return;
-        await ref.read(userRepositoryProvider).updateRoleAndStatus(uid: user.uid, role: role, status: user.status);
-      },
+    return SizedBox(
+      width: 150,
+      child: DropdownButton<AppRole>(
+        value: user.role,
+        isExpanded: true,
+        underline: const SizedBox.shrink(),
+        style: TextStyle(fontSize: 12.8, color: Theme.of(context).colorScheme.onSurface),
+        items: [for (final role in AppRole.values) DropdownMenuItem(value: role, child: Text(role.label))],
+        onChanged: (role) async {
+          if (role == null) return;
+          await ref.read(userRepositoryProvider).updateRoleAndStatus(uid: user.uid, role: role, status: user.status);
+        },
+      ),
     );
   }
 }
