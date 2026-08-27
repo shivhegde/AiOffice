@@ -4,16 +4,20 @@ import 'package:go_router/go_router.dart';
 import '../core/constants/roles.dart';
 import '../features/auth/application/auth_providers.dart';
 import '../features/auth/presentation/login_screen.dart';
+import '../features/candidates/presentation/candidates_screen.dart';
 import '../features/dashboard/presentation/dashboard_screen.dart';
+import '../features/employees/presentation/employees_screen.dart';
+import '../features/epf_consultancy/presentation/epf_consultancy_screen.dart';
+import '../features/inventory/presentation/inventory_screen.dart';
 import '../features/inward_outward/presentation/inward_outward_screen.dart';
 import '../features/audit/presentation/audit_log_screen.dart';
 import '../features/tender_emd/presentation/tender_emd_screen.dart';
 import '../features/users/application/user_providers.dart';
+import '../features/vehicle_insurance/presentation/vehicle_insurance_screen.dart';
 import '../features/users/presentation/manage_users_screen.dart';
 import '../features/version_gate/presentation/app_version_settings_screen.dart';
 import '../features/work_orders/presentation/work_orders_screen.dart';
 import '../shared/widgets/app_shell.dart';
-import '../shared/widgets/placeholder_module_screen.dart';
 import 'go_router_refresh_stream.dart';
 
 /// `authStateChanges`-driven route protection per REQUIREMENTS.md §5:
@@ -51,31 +55,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/inward-outward', builder: (context, state) => const InwardOutwardScreen()),
           GoRoute(path: '/tender-emd', builder: (context, state) => const TenderEmdScreen()),
           GoRoute(path: '/work-orders', builder: (context, state) => const WorkOrdersScreen()),
-          GoRoute(
-            path: '/employees',
-            builder: (context, state) =>
-                const PlaceholderModuleScreen(moduleName: 'Employees', requirementsSection: '§9.1'),
-          ),
-          GoRoute(
-            path: '/candidates',
-            builder: (context, state) =>
-                const PlaceholderModuleScreen(moduleName: 'Candidate Bank', requirementsSection: '§9.2'),
-          ),
-          GoRoute(
-            path: '/inventory',
-            builder: (context, state) =>
-                const PlaceholderModuleScreen(moduleName: 'Inventory', requirementsSection: '§9.3'),
-          ),
-          GoRoute(
-            path: '/vehicle-insurance',
-            builder: (context, state) =>
-                const PlaceholderModuleScreen(moduleName: 'Vehicle Insurance', requirementsSection: '§9.4'),
-          ),
-          GoRoute(
-            path: '/epf',
-            builder: (context, state) =>
-                const PlaceholderModuleScreen(moduleName: 'EPF Consultancy', requirementsSection: '§9.5'),
-          ),
+          GoRoute(path: '/employees', builder: (context, state) => const EmployeesScreen()),
+          GoRoute(path: '/candidates', builder: (context, state) => const CandidatesScreen()),
+          GoRoute(path: '/inventory', builder: (context, state) => const InventoryScreen()),
+          GoRoute(path: '/vehicle-insurance', builder: (context, state) => const VehicleInsuranceScreen()),
+          GoRoute(path: '/epf', builder: (context, state) => const EpfConsultancyScreen()),
           GoRoute(path: '/admin/users', builder: (context, state) => const ManageUsersScreen()),
           GoRoute(path: '/admin/audit-log', builder: (context, state) => const AuditLogScreen()),
           GoRoute(path: '/admin/app-version', builder: (context, state) => const AppVersionSettingsScreen()),

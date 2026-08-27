@@ -64,6 +64,36 @@ service cloud.firestore {
       allow update, delete: if canManageDocuments();
     }
 
+    match /employees/{docId} {
+      allow read: if isKnownUser();
+      allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if canManageDocuments();
+    }
+
+    match /candidates/{docId} {
+      allow read: if isKnownUser();
+      allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if canManageDocuments();
+    }
+
+    match /inventory_items/{docId} {
+      allow read: if isKnownUser();
+      allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if canManageDocuments();
+    }
+
+    match /vehicle_policies/{docId} {
+      allow read: if isKnownUser();
+      allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if canManageDocuments();
+    }
+
+    match /epf_cases/{docId} {
+      allow read: if isKnownUser();
+      allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if canManageDocuments();
+    }
+
     match /audit_log/{entryId} {
       allow read: if isAdmin();
       allow create: if isKnownUser() && request.resource.data.actorUid == request.auth.uid;

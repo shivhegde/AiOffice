@@ -34,5 +34,37 @@ service firebase.storage {
                    && request.resource.contentType.matches('application/pdf|image/.*');
       allow delete: if signedIn();
     }
+
+    match /employees/{year}/{docId}/{slot}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+                   && request.resource.size < 20 * 1024 * 1024
+                   && request.resource.contentType.matches('application/pdf|image/.*');
+      allow delete: if signedIn();
+    }
+
+    match /candidates/{year}/{docId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+                   && request.resource.size < 20 * 1024 * 1024
+                   && request.resource.contentType.matches('application/pdf|application/msword|application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      allow delete: if signedIn();
+    }
+
+    match /vehicle_policies/{docId}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+                   && request.resource.size < 20 * 1024 * 1024
+                   && request.resource.contentType.matches('application/pdf|image/.*');
+      allow delete: if signedIn();
+    }
+
+    match /epf_cases/{year}/{docId}/{slot}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+                   && request.resource.size < 20 * 1024 * 1024
+                   && request.resource.contentType.matches('application/pdf|image/.*');
+      allow delete: if signedIn();
+    }
   }
 }

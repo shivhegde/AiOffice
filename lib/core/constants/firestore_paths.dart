@@ -9,6 +9,11 @@ class FirestorePaths {
   static const auditLog = 'audit_log';
   static const tenders = 'tenders';
   static const workOrders = 'work_orders';
+  static const employees = 'employees';
+  static const candidates = 'candidates';
+  static const inventoryItems = 'inventory_items';
+  static const vehiclePolicies = 'vehicle_policies';
+  static const epfCases = 'epf_cases';
   static const appConfig = 'app_config';
   static const versionGateDocId = 'version_gate';
 }
