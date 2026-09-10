@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/widgets/slideover_panel.dart';
+import '../../departments/application/department_providers.dart';
 import '../../users/application/user_providers.dart';
 import '../application/work_order_providers.dart';
 import '../domain/work_order.dart';
@@ -36,7 +37,10 @@ class _WorkOrderForm extends ConsumerStatefulWidget {
 }
 
 class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
-  final _departmentController = TextEditingController();
+  // Owned by the Department Autocomplete's fieldViewBuilder, not by us —
+  // captured on build so `_submit` can read the current text. Must not be
+  // disposed here; RawAutocomplete disposes its own controller.
+  TextEditingController? _departmentAutocompleteController;
   final _remarksController = TextEditingController();
   final _extensionOrderNumberController = TextEditingController();
   final _extensionReasonController = TextEditingController();
@@ -76,7 +80,6 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
   void initState() {
     super.initState();
     final e = widget.existing;
-    _departmentController.text = e?.departmentName ?? '';
     _remarksController.text = e?.remarks ?? '';
     _extensionOrderNumberController.text = e?.extensionOrderNumber ?? '';
     _extensionReasonController.text = e?.extensionReason ?? '';
@@ -111,7 +114,6 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
 
   @override
   void dispose() {
-    _departmentController.dispose();
     _remarksController.dispose();
     _extensionOrderNumberController.dispose();
     _extensionReasonController.dispose();
@@ -171,7 +173,8 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
   }
 
   Future<void> _submit() async {
-    if (_departmentController.text.trim().isEmpty) {
+    final departmentName = _departmentAutocompleteController?.text.trim() ?? '';
+    if (departmentName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Department is required.')));
       return;
     }
@@ -190,7 +193,7 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
         workOrderNumber: widget.existing?.workOrderNumber ?? '',
         year: _workOrderDate.year,
         workOrderDate: _workOrderDate,
-        departmentName: _departmentController.text.trim(),
+        departmentName: departmentName,
         contractType: _contractType,
         startDate: _startDate,
         endDate: _contractType == ContractType.tillNextTender ? null : _endDate,
@@ -251,6 +254,7 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
           fdFileContentType: _pendingFdFile?.contentType,
         );
       }
+      await ref.read(departmentRepositoryProvider).ensureExists(name: departmentName, actorUid: actorUid);
 
       if (mounted) {
         Navigator.of(context).pop();
@@ -263,6 +267,54 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  /// Autocomplete over the shared Department table (`departmentListProvider`)
+  /// that still accepts free text — picking an existing name or typing a
+  /// new one both work, and `_submit` adds any new name to the table.
+  Widget _departmentField() {
+    final names = ref
+        .watch(departmentListProvider)
+        .maybeWhen(data: (list) => list.map((d) => d.name).toList(), orElse: () => const <String>[]);
+
+    return Autocomplete<String>(
+      initialValue: TextEditingValue(text: widget.existing?.departmentName ?? ''),
+      optionsBuilder: (value) {
+        if (value.text.trim().isEmpty) return names;
+        final needle = value.text.toLowerCase();
+        return names.where((n) => n.toLowerCase().contains(needle));
+      },
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        _departmentAutocompleteController = controller;
+        return TextField(controller: controller, focusNode: focusNode, onSubmitted: (_) => onFieldSubmitted());
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        final theme = Theme.of(context);
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 220, maxWidth: 420),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (context, index) {
+                  final option = options.elementAt(index);
+                  return ListTile(
+                    dense: true,
+                    title: Text(option, style: TextStyle(color: theme.colorScheme.onSurface)),
+                    onTap: () => onSelected(option),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _sectionHeader(String title, {bool withDivider = true}) {
@@ -293,7 +345,7 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
             ),
           ),
         _dateButton('Work Order Date', _workOrderDate, (d) => setState(() => _workOrderDate = d)),
-        FormRowLabel(label: 'Department', child: TextField(controller: _departmentController)),
+        FormRowLabel(label: 'Department', child: _departmentField()),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

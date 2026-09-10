@@ -94,6 +94,15 @@ service cloud.firestore {
       allow update, delete: if canManageDocuments();
     }
 
+    // Shared Department master list (see lib/features/departments) —
+    // populated as users add new names via the Work Orders form's picker,
+    // not curated up front.
+    match /departments/{docId} {
+      allow read: if isKnownUser();
+      allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if canManageDocuments();
+    }
+
     match /audit_log/{entryId} {
       allow read: if isAdmin();
       allow create: if isKnownUser() && request.resource.data.actorUid == request.auth.uid;
