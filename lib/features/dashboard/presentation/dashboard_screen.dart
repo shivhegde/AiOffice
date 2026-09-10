@@ -36,7 +36,7 @@ class DashboardScreen extends ConsumerWidget {
                 physics: const NeverScrollableScrollPhysics(),
                 mainAxisSpacing: 14,
                 crossAxisSpacing: 14,
-                childAspectRatio: 2.1,
+                childAspectRatio: 3.1,
                 children: [
                   StatTile(label: 'Total Inward', value: '${stats.totalInward}'),
                   StatTile(label: 'Total Outward', value: '${stats.totalOutward}'),

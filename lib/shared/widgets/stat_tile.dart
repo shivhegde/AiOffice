@@ -33,7 +33,7 @@ class StatTile extends StatelessWidget {
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(10),
@@ -52,17 +52,17 @@ class StatTile extends StatelessWidget {
               color: colors.textMuted,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 3),
           Text(
             value,
             style: AppFonts.mono(
-              fontSize: 24,
+              fontSize: 18,
               fontWeight: FontWeight.w700,
               color: theme.colorScheme.onSurface,
             ),
           ),
           if (deltaText != null) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
