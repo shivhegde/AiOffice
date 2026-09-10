@@ -41,7 +41,7 @@ class TenderEmdScreen extends ConsumerWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   mainAxisSpacing: 14,
                   crossAxisSpacing: 14,
-                  childAspectRatio: 2.3,
+                  childAspectRatio: 3.3,
                   children: [
                     StatTile(label: 'Total EMD Deposited', value: formatCurrencyCompact(deposited)),
                     StatTile(label: 'Total EMD Pending', value: formatCurrencyCompact(pending)),

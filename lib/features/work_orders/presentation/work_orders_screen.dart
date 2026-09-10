@@ -180,7 +180,7 @@ class _StatRow extends StatelessWidget {
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 14,
           crossAxisSpacing: 14,
-          childAspectRatio: 2.3,
+          childAspectRatio: 3.3,
           children: tiles,
         );
       },
