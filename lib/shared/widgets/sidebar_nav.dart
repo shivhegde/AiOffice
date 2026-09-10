@@ -50,6 +50,7 @@ final List<NavGroup> appNavGroups = [
       NavEntry(route: '/admin/users', label: 'Manage Users', icon: Icons.people_outline_rounded, minRole: AppRole.admin),
       NavEntry(route: '/admin/audit-log', label: 'Audit Log', icon: Icons.assignment_outlined, minRole: AppRole.admin),
       NavEntry(route: '/admin/app-version', label: 'App Version', icon: Icons.system_update_outlined, minRole: AppRole.admin),
+      NavEntry(route: '/admin/licence', label: 'Licence', icon: Icons.verified_user_outlined, minRole: AppRole.admin),
     ],
   ),
 ];

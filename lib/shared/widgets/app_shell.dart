@@ -6,6 +6,7 @@ import '../../app/theme/app_colors.dart';
 import '../../features/auth/application/auth_providers.dart';
 import '../../features/users/application/user_providers.dart';
 import '../../features/users/domain/app_user.dart';
+import 'licence_expiry_banner.dart';
 import 'sidebar_nav.dart';
 import 'top_bar.dart';
 
@@ -22,6 +23,7 @@ const Map<String, (String, String)> _titles = {
   '/admin/users': ('Manage Users', 'Roles & account status — Admin only'),
   '/admin/audit-log': ('Audit Log', 'System activity trail — Admin only'),
   '/admin/app-version': ('App Version', 'Allowed app-version range — Admin only'),
+  '/admin/licence': ('Licence', 'App-wide licence expiry date — Admin only'),
 };
 
 /// Persistent sidebar + top bar shell wrapping every authenticated route,
@@ -70,6 +72,7 @@ class AppShell extends ConsumerWidget {
                     onMenuTap: isNarrow ? () => Scaffold.of(innerContext).openDrawer() : null,
                   ),
                 ),
+                const LicenceExpiryBanner(),
                 Expanded(
                   child: Container(
                     color: Theme.of(context).scaffoldBackgroundColor,

@@ -16,6 +16,7 @@ class FirestorePaths {
   static const epfCases = 'epf_cases';
   static const appConfig = 'app_config';
   static const versionGateDocId = 'version_gate';
+  static const licenceDocId = 'licence';
 }
 
 /// Cloud Storage path convention for Inward/Outward file uploads:
