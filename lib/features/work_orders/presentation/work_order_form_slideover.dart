@@ -4,8 +4,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/document_viewer_dialog.dart';
 import '../../../shared/widgets/slideover_panel.dart';
 import '../../departments/application/department_providers.dart';
+import '../../inward_outward/application/io_providers.dart' show storageUploadServiceProvider;
 import '../../users/application/user_providers.dart';
 import '../application/work_order_providers.dart';
 import '../domain/work_order.dart';
@@ -37,10 +39,7 @@ class _WorkOrderForm extends ConsumerStatefulWidget {
 }
 
 class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
-  // Owned by the Department Autocomplete's fieldViewBuilder, not by us —
-  // captured on build so `_submit` can read the current text. Must not be
-  // disposed here; RawAutocomplete disposes its own controller.
-  TextEditingController? _departmentAutocompleteController;
+  final _departmentController = TextEditingController();
   final _remarksController = TextEditingController();
   final _extensionOrderNumberController = TextEditingController();
   final _extensionReasonController = TextEditingController();
@@ -80,6 +79,7 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
   void initState() {
     super.initState();
     final e = widget.existing;
+    _departmentController.text = e?.departmentName ?? '';
     _remarksController.text = e?.remarks ?? '';
     _extensionOrderNumberController.text = e?.extensionOrderNumber ?? '';
     _extensionReasonController.text = e?.extensionReason ?? '';
@@ -114,6 +114,7 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
 
   @override
   void dispose() {
+    _departmentController.dispose();
     _remarksController.dispose();
     _extensionOrderNumberController.dispose();
     _extensionReasonController.dispose();
@@ -172,8 +173,25 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
     });
   }
 
+  Future<void> _viewFdFile() async {
+    final existing = widget.existing;
+    if (existing == null || !existing.hasFdFile) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final bytes = await ref.read(storageUploadServiceProvider).fetchBytes(existing.fdStoragePath!);
+      if (bytes == null) throw Exception('File not found in storage.');
+      final fileName = existing.fdFileName ?? '${existing.workOrderNumber}-fd';
+      final extension = fileName.contains('.') ? fileName.split('.').last.toLowerCase() : '';
+      final mimeType = extension == 'pdf' ? 'application/pdf' : 'image/$extension';
+      if (!mounted) return;
+      await DocumentViewerDialog.show(context, bytes: bytes, fileName: fileName, contentType: mimeType);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Could not open FD document: $e')));
+    }
+  }
+
   Future<void> _submit() async {
-    final departmentName = _departmentAutocompleteController?.text.trim() ?? '';
+    final departmentName = _departmentController.text.trim();
     if (departmentName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Department is required.')));
       return;
@@ -269,50 +287,23 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
     }
   }
 
-  /// Autocomplete over the shared Department table (`departmentListProvider`)
-  /// that still accepts free text — picking an existing name or typing a
-  /// new one both work, and `_submit` adds any new name to the table.
+  /// Pulldown over the shared Department table (`departmentListProvider`)
+  /// that still accepts free text — tapping the field lists every existing
+  /// department (typing filters it), and picking one or typing a new name
+  /// both work; `_submit` adds any new name to the table.
   Widget _departmentField() {
     final names = ref
         .watch(departmentListProvider)
         .maybeWhen(data: (list) => list.map((d) => d.name).toList(), orElse: () => const <String>[]);
 
-    return Autocomplete<String>(
-      initialValue: TextEditingValue(text: widget.existing?.departmentName ?? ''),
-      optionsBuilder: (value) {
-        if (value.text.trim().isEmpty) return names;
-        final needle = value.text.toLowerCase();
-        return names.where((n) => n.toLowerCase().contains(needle));
-      },
-      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-        _departmentAutocompleteController = controller;
-        return TextField(controller: controller, focusNode: focusNode, onSubmitted: (_) => onFieldSubmitted());
-      },
-      optionsViewBuilder: (context, onSelected, options) {
-        final theme = Theme.of(context);
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 4,
-            borderRadius: BorderRadius.circular(8),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 220, maxWidth: 420),
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                itemCount: options.length,
-                itemBuilder: (context, index) {
-                  final option = options.elementAt(index);
-                  return ListTile(
-                    dense: true,
-                    title: Text(option, style: TextStyle(color: theme.colorScheme.onSurface)),
-                    onTap: () => onSelected(option),
-                  );
-                },
-              ),
-            ),
-          ),
-        );
+    return DropdownMenu<String>(
+      controller: _departmentController,
+      expandedInsets: EdgeInsets.zero,
+      enableFilter: true,
+      requestFocusOnTap: true,
+      dropdownMenuEntries: [for (final n in names) DropdownMenuEntry(value: n, label: n)],
+      onSelected: (value) {
+        if (value != null) _departmentController.text = value;
       },
     );
   }
@@ -531,24 +522,38 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
         ),
         FormRowLabel(
           label: 'FD Scan Copy',
-          child: InkWell(
-            onTap: _pickFdFile,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                borderRadius: BorderRadius.circular(8),
+          child: Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: _pickFdFile,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _pendingFdFile != null
+                          ? 'Attached: ${_pendingFdFile!.name}'
+                          : (widget.existing?.hasFdFile == true
+                                ? 'On file: ${widget.existing!.fdFileName}. Tap to replace.'
+                                : 'Tap to upload FD scan (PDF or image)'),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
               ),
-              child: Text(
-                _pendingFdFile != null
-                    ? 'Attached: ${_pendingFdFile!.name}'
-                    : (widget.existing?.hasFdFile == true
-                          ? 'On file: ${widget.existing!.fdFileName}. Tap to replace.'
-                          : 'Tap to upload FD scan (PDF or image)'),
-                textAlign: TextAlign.center,
-              ),
-            ),
+              if (_pendingFdFile == null && widget.existing?.hasFdFile == true) ...[
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.visibility_outlined),
+                  tooltip: 'View FD document',
+                  onPressed: _viewFdFile,
+                ),
+              ],
+            ],
           ),
         ),
 
