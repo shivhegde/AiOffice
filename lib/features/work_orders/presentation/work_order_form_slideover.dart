@@ -173,20 +173,41 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
     });
   }
 
+  Future<Uint8List> _fetchFdFileBytes(WorkOrder existing) async {
+    final bytes = await ref.read(storageUploadServiceProvider).fetchBytes(existing.fdStoragePath!);
+    if (bytes == null) throw Exception('File not found in storage.');
+    return bytes;
+  }
+
+  String _fdMimeType(String fileName) {
+    final extension = fileName.contains('.') ? fileName.split('.').last.toLowerCase() : '';
+    return extension == 'pdf' ? 'application/pdf' : 'image/$extension';
+  }
+
   Future<void> _viewFdFile() async {
     final existing = widget.existing;
     if (existing == null || !existing.hasFdFile) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final bytes = await ref.read(storageUploadServiceProvider).fetchBytes(existing.fdStoragePath!);
-      if (bytes == null) throw Exception('File not found in storage.');
+      final bytes = await _fetchFdFileBytes(existing);
       final fileName = existing.fdFileName ?? '${existing.workOrderNumber}-fd';
-      final extension = fileName.contains('.') ? fileName.split('.').last.toLowerCase() : '';
-      final mimeType = extension == 'pdf' ? 'application/pdf' : 'image/$extension';
       if (!mounted) return;
-      await DocumentViewerDialog.show(context, bytes: bytes, fileName: fileName, contentType: mimeType);
+      await DocumentViewerDialog.show(context, bytes: bytes, fileName: fileName, contentType: _fdMimeType(fileName));
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Could not open FD document: $e')));
+    }
+  }
+
+  Future<void> _downloadFdFile() async {
+    final existing = widget.existing;
+    if (existing == null || !existing.hasFdFile) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final bytes = await _fetchFdFileBytes(existing);
+      final fileName = existing.fdFileName ?? '${existing.workOrderNumber}-fd';
+      await FilePicker.saveFile(fileName: fileName, bytes: bytes, mimeType: _fdMimeType(fileName));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Could not download FD document: $e')));
     }
   }
 
@@ -551,6 +572,11 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
                   icon: const Icon(Icons.visibility_outlined),
                   tooltip: 'View FD document',
                   onPressed: _viewFdFile,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.download_outlined),
+                  tooltip: 'Download FD document',
+                  onPressed: _downloadFdFile,
                 ),
               ],
             ],
