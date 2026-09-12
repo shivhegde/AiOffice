@@ -35,7 +35,11 @@ class CandidateFilterState {
   bool matches(Candidate c) {
     if (search.trim().isNotEmpty) {
       final needle = search.trim().toLowerCase();
-      final haystack = '${c.fullName} ${c.candidateId} ${c.district} ${c.taluk}'.toLowerCase();
+      final qualifications = c.education.map((e) => e.label).join(' ');
+      final haystack =
+          '${c.fullName} ${c.candidateId} ${c.district} ${c.taluk} $qualifications '
+                  '${c.mobileNumber} ${c.category.label} ${c.experience.label}'
+              .toLowerCase();
       if (!haystack.contains(needle)) return false;
     }
     if (category != null && c.category != category) return false;

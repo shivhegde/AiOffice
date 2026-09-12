@@ -83,7 +83,7 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
     _pincodeController.text = e?.pincode ?? '';
     _heightController.text = e?.height ?? '';
 
-    _dateOfBirth = e?.dateOfBirth ?? DateTime(1995, 1, 1);
+    _dateOfBirth = e?.dateOfBirth ?? DateTime.now();
     _gender = e?.gender ?? Gender.male;
     _maritalStatus = e?.maritalStatus ?? MaritalStatus.single;
     _category = e?.category ?? CandidateCategory.security;
