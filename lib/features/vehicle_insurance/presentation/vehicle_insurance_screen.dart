@@ -66,7 +66,9 @@ class _PoliciesTab extends ConsumerWidget {
       data: (all) {
         final active = all.where((p) => p.status == PolicyStatus.active).length;
         final expiring7 = all.where((p) => p.isExpiringWithin(7)).length;
-        final expiring30 = all.where((p) => p.isExpiringWithin(30)).length;
+        final expiring8to15 = all.where((p) => p.isExpiringBetween(8, 15)).length;
+        final expiring16to30 = all.where((p) => p.isExpiringBetween(16, 30)).length;
+        final expiring31to60 = all.where((p) => p.isExpiringBetween(31, 60)).length;
         final premiumCollected = all.fold<double>(0, (sum, p) => sum + p.premium);
 
         return Column(
@@ -76,7 +78,9 @@ class _PoliciesTab extends ConsumerWidget {
               tiles: [
                 StatTile(label: 'Active Policies', value: '$active'),
                 StatTile(label: 'Expiring in 7 Days', value: '$expiring7'),
-                StatTile(label: 'Expiring in 30 Days', value: '$expiring30'),
+                StatTile(label: 'Expiring in 8 to 15 days', value: '$expiring8to15'),
+                StatTile(label: 'Expiring in 16 to 30 days', value: '$expiring16to30'),
+                StatTile(label: 'Expiring in 31 to 60 days', value: '$expiring31to60'),
                 StatTile(label: 'Premium Collected', value: formatCurrencyCompact(premiumCollected)),
               ],
             ),
@@ -116,8 +120,10 @@ class _RenewalsTab extends ConsumerWidget {
     return allAsync.when(
       data: (all) {
         final renewedThisMonth = all.where((p) => p.isRenewedThisMonth).length;
-        final due60 = all.where((p) => p.isExpiringWithin(60)).length;
-        final due15 = all.where((p) => p.isExpiringWithin(15)).length;
+        final due0to7 = all.where((p) => p.isExpiringBetween(0, 7)).length;
+        final due8to15 = all.where((p) => p.isExpiringBetween(8, 15)).length;
+        final due16to30 = all.where((p) => p.isExpiringBetween(16, 30)).length;
+        final due31to60 = all.where((p) => p.isExpiringBetween(31, 60)).length;
         final overdue = all.where((p) => p.isOverdue).length;
 
         return Column(
@@ -125,8 +131,10 @@ class _RenewalsTab extends ConsumerWidget {
           children: [
             _StatRow(
               tiles: [
-                StatTile(label: 'Due in 60 Days', value: '$due60'),
-                StatTile(label: 'Due in 15 Days', value: '$due15'),
+                StatTile(label: 'Due in 0-7 Days', value: '$due0to7'),
+                StatTile(label: 'Due in 8-15 Days', value: '$due8to15'),
+                StatTile(label: 'Due in 16-30 Days', value: '$due16to30'),
+                StatTile(label: 'Due in 31-60 Days', value: '$due31to60'),
                 StatTile(label: 'Overdue', value: '$overdue'),
                 StatTile(label: 'Renewed This Month', value: '$renewedThisMonth'),
               ],

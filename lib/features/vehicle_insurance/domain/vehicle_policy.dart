@@ -98,6 +98,13 @@ class VehiclePolicy {
     return daysToExpiry >= 0 && daysToExpiry <= days;
   }
 
+  /// True if the policy is active and expires within `[minDays, maxDays]`
+  /// (inclusive) — used for the dashboard's non-overlapping expiry bands.
+  bool isExpiringBetween(int minDays, int maxDays) {
+    if (status != PolicyStatus.active) return false;
+    return daysToExpiry >= minDays && daysToExpiry <= maxDays;
+  }
+
   bool get isOverdue => status == PolicyStatus.active && daysToExpiry < 0;
 
   /// §9.4 dashboard "Renewals completed this month".
