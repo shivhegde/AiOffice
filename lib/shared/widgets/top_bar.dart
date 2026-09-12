@@ -48,60 +48,84 @@ class TopBar extends ConsumerWidget implements PreferredSizeWidget {
             const SizedBox(width: 6),
           ],
           if (!isNarrow)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: theme.textTheme.titleLarge?.copyWith(fontSize: 19)),
-                Text(crumb, style: TextStyle(fontSize: 12, color: colors.textMuted)),
-              ],
-            ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 360),
-              child: TextField(
-                onSubmitted: onSearch,
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: 'Search documents, tenders, people…',
-                  prefixIcon: const Icon(Icons.search, size: 18),
+            Flexible(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 170),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.titleLarge?.copyWith(fontSize: 19),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      crumb,
+                      style: TextStyle(fontSize: 12, color: colors.textMuted),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
               ),
             ),
-          ),
-          const Spacer(),
-          if (kDebugMode) _DebugRolePicker(activeRole: effectiveRole),
-          const SizedBox(width: 14),
-          Container(
-            padding: const EdgeInsets.fromLTRB(5, 5, 10, 5),
-            decoration: BoxDecoration(
-              color: theme.scaffoldBackgroundColor,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: theme.colorScheme.outlineVariant),
+          const SizedBox(width: 16),
+          Expanded(
+            child: TextField(
+              onSubmitted: onSearch,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Search documents, tenders, people…',
+                prefixIcon: const Icon(Icons.search, size: 18),
+              ),
             ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircleAvatar(
-                  radius: 13,
-                  backgroundColor: colors.ink800,
-                  child: Text(
-                    _initials(appUser?.displayName ?? appUser?.email ?? '?'),
-                    style: const TextStyle(fontSize: 11, color: Color(0xFFEDE7D6), fontWeight: FontWeight.w700),
-                  ),
+          ),
+          const SizedBox(width: 14),
+          if (kDebugMode && !isNarrow) ...[
+            Flexible(child: _DebugRolePicker(activeRole: effectiveRole)),
+            const SizedBox(width: 14),
+          ],
+          Flexible(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 220),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(5, 5, 10, 5),
+                decoration: BoxDecoration(
+                  color: theme.scaffoldBackgroundColor,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: theme.colorScheme.outlineVariant),
                 ),
-                const SizedBox(width: 8),
-                if (!isNarrow)
-                  Text(
-                    '${appUser?.displayName ?? appUser?.email ?? '...'} • ${effectiveRole.label}',
-                    style: const TextStyle(fontSize: 12.5),
-                  ),
-                IconButton(
-                  icon: const Icon(Icons.logout, size: 16),
-                  tooltip: 'Sign out',
-                  onPressed: () => ref.read(authRepositoryProvider).signOut(),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(
+                      radius: 13,
+                      backgroundColor: colors.ink800,
+                      child: Text(
+                        _initials(appUser?.displayName ?? appUser?.email ?? '?'),
+                        style: const TextStyle(fontSize: 11, color: Color(0xFFEDE7D6), fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    if (!isNarrow)
+                      Flexible(
+                        child: Text(
+                          '${appUser?.displayName ?? appUser?.email ?? '...'} • ${effectiveRole.label}',
+                          style: const TextStyle(fontSize: 12.5),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.logout, size: 16),
+                      tooltip: 'Sign out',
+                      onPressed: () => ref.read(authRepositoryProvider).signOut(),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ],
@@ -125,17 +149,34 @@ class _DebugRolePicker extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Text('Viewing as (debug)', style: TextStyle(fontSize: 12)),
-        const SizedBox(width: 6),
-        DropdownButton<AppRole>(
-          value: activeRole,
-          underline: const SizedBox.shrink(),
-          style: const TextStyle(fontSize: 12.5),
-          items: [for (final role in AppRole.values) DropdownMenuItem(value: role, child: Text(role.label))],
-          onChanged: (role) => ref.read(debugRoleOverrideProvider.notifier).state = role,
+        Tooltip(
+          message: 'Viewing as (debug)',
+          child: Icon(Icons.bug_report_outlined, size: 15, color: onSurface),
+        ),
+        const SizedBox(width: 4),
+        Flexible(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 100),
+            child: DropdownButton<AppRole>(
+              value: activeRole,
+              isExpanded: true,
+              underline: const SizedBox.shrink(),
+              style: TextStyle(fontSize: 12.5, color: onSurface),
+              dropdownColor: Theme.of(context).colorScheme.surface,
+              items: [
+                for (final role in AppRole.values)
+                  DropdownMenuItem(
+                    value: role,
+                    child: Text(role.label, overflow: TextOverflow.ellipsis, style: TextStyle(color: onSurface)),
+                  ),
+              ],
+              onChanged: (role) => ref.read(debugRoleOverrideProvider.notifier).state = role,
+            ),
+          ),
         ),
       ],
     );
