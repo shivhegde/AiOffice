@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/document_actions.dart';
 import '../../../shared/widgets/slideover_panel.dart';
 import '../../users/application/user_providers.dart';
 import '../application/vehicle_policy_providers.dart';
@@ -458,24 +459,38 @@ class _VehiclePolicyFormState extends ConsumerState<_VehiclePolicyForm> {
         ),
         FormRowLabel(
           label: 'Policy PDF',
-          child: InkWell(
-            onTap: _pickPolicyFile,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                borderRadius: BorderRadius.circular(8),
+          child: Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: _pickPolicyFile,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _pendingPolicyFile != null
+                          ? 'Attached: ${_pendingPolicyFile!.name}'
+                          : (widget.existing?.hasPolicyFile == true
+                                ? 'On file: ${widget.existing!.policyFileName}. Tap to replace.'
+                                : 'Tap to upload policy PDF or scan'),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
               ),
-              child: Text(
-                _pendingPolicyFile != null
-                    ? 'Attached: ${_pendingPolicyFile!.name}'
-                    : (widget.existing?.hasPolicyFile == true
-                          ? 'On file: ${widget.existing!.policyFileName}. Tap to replace.'
-                          : 'Tap to upload policy PDF or scan'),
-                textAlign: TextAlign.center,
-              ),
-            ),
+              if (_pendingPolicyFile == null && widget.existing?.hasPolicyFile == true) ...[
+                const SizedBox(width: 8),
+                DocumentActionIcons(
+                  storagePath: widget.existing!.policyStoragePath!,
+                  fileName: widget.existing!.policyFileName!,
+                  label: 'policy document',
+                ),
+              ],
+            ],
           ),
         ),
 

@@ -4,9 +4,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../shared/widgets/document_viewer_dialog.dart';
+import '../../../shared/widgets/document_actions.dart';
 import '../../../shared/widgets/slideover_panel.dart';
-import '../../inward_outward/application/io_providers.dart' show storageUploadServiceProvider;
 import '../../users/application/user_providers.dart';
 import '../application/employee_providers.dart';
 import '../domain/employee.dart';
@@ -182,52 +181,11 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
           ),
           if (pending == null && existingStoragePath != null && existingFileName != null) ...[
             const SizedBox(width: 8),
-            IconButton(
-              icon: const Icon(Icons.visibility_outlined),
-              tooltip: 'View $label',
-              onPressed: () => _viewFile(storagePath: existingStoragePath, fileName: existingFileName),
-            ),
-            IconButton(
-              icon: const Icon(Icons.download_outlined),
-              tooltip: 'Download $label',
-              onPressed: () => _downloadFile(storagePath: existingStoragePath, fileName: existingFileName),
-            ),
+            DocumentActionIcons(storagePath: existingStoragePath, fileName: existingFileName, label: label),
           ],
         ],
       ),
     );
-  }
-
-  Future<Uint8List> _fetchFileBytes(String storagePath) async {
-    final bytes = await ref.read(storageUploadServiceProvider).fetchBytes(storagePath);
-    if (bytes == null) throw Exception('File not found in storage.');
-    return bytes;
-  }
-
-  String _mimeTypeFor(String fileName) {
-    final extension = fileName.contains('.') ? fileName.split('.').last.toLowerCase() : '';
-    return extension == 'pdf' ? 'application/pdf' : 'image/$extension';
-  }
-
-  Future<void> _viewFile({required String storagePath, required String fileName}) async {
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final bytes = await _fetchFileBytes(storagePath);
-      if (!mounted) return;
-      await DocumentViewerDialog.show(context, bytes: bytes, fileName: fileName, contentType: _mimeTypeFor(fileName));
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Could not open $fileName: $e')));
-    }
-  }
-
-  Future<void> _downloadFile({required String storagePath, required String fileName}) async {
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final bytes = await _fetchFileBytes(storagePath);
-      await FilePicker.saveFile(fileName: fileName, bytes: bytes, mimeType: _mimeTypeFor(fileName));
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Could not download $fileName: $e')));
-    }
   }
 
   Future<void> _submit() async {

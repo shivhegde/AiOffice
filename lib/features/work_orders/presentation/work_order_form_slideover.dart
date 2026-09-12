@@ -4,10 +4,9 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../shared/widgets/document_viewer_dialog.dart';
+import '../../../shared/widgets/document_actions.dart';
 import '../../../shared/widgets/slideover_panel.dart';
 import '../../departments/application/department_providers.dart';
-import '../../inward_outward/application/io_providers.dart' show storageUploadServiceProvider;
 import '../../users/application/user_providers.dart';
 import '../application/work_order_providers.dart';
 import '../domain/work_order.dart';
@@ -173,43 +172,6 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
     });
   }
 
-  Future<Uint8List> _fetchFdFileBytes(WorkOrder existing) async {
-    final bytes = await ref.read(storageUploadServiceProvider).fetchBytes(existing.fdStoragePath!);
-    if (bytes == null) throw Exception('File not found in storage.');
-    return bytes;
-  }
-
-  String _fdMimeType(String fileName) {
-    final extension = fileName.contains('.') ? fileName.split('.').last.toLowerCase() : '';
-    return extension == 'pdf' ? 'application/pdf' : 'image/$extension';
-  }
-
-  Future<void> _viewFdFile() async {
-    final existing = widget.existing;
-    if (existing == null || !existing.hasFdFile) return;
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final bytes = await _fetchFdFileBytes(existing);
-      final fileName = existing.fdFileName ?? '${existing.workOrderNumber}-fd';
-      if (!mounted) return;
-      await DocumentViewerDialog.show(context, bytes: bytes, fileName: fileName, contentType: _fdMimeType(fileName));
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Could not open FD document: $e')));
-    }
-  }
-
-  Future<void> _downloadFdFile() async {
-    final existing = widget.existing;
-    if (existing == null || !existing.hasFdFile) return;
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      final bytes = await _fetchFdFileBytes(existing);
-      final fileName = existing.fdFileName ?? '${existing.workOrderNumber}-fd';
-      await FilePicker.saveFile(fileName: fileName, bytes: bytes, mimeType: _fdMimeType(fileName));
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Could not download FD document: $e')));
-    }
-  }
 
   Future<void> _submit() async {
     final departmentName = _departmentController.text.trim();
@@ -568,15 +530,10 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
               ),
               if (_pendingFdFile == null && widget.existing?.hasFdFile == true) ...[
                 const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.visibility_outlined),
-                  tooltip: 'View FD document',
-                  onPressed: _viewFdFile,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.download_outlined),
-                  tooltip: 'Download FD document',
-                  onPressed: _downloadFdFile,
+                DocumentActionIcons(
+                  storagePath: widget.existing!.fdStoragePath!,
+                  fileName: widget.existing!.fdFileName ?? '${widget.existing!.workOrderNumber}-fd',
+                  label: 'FD document',
                 ),
               ],
             ],

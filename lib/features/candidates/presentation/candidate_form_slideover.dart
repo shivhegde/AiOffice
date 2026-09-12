@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/document_actions.dart';
 import '../../../shared/widgets/slideover_panel.dart';
 import '../../users/application/user_providers.dart';
 import '../application/candidate_providers.dart';
@@ -450,24 +451,38 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
         _sectionHeader('Document Storage'),
         FormRowLabel(
           label: 'Resume',
-          child: InkWell(
-            onTap: _pickResume,
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-                borderRadius: BorderRadius.circular(8),
+          child: Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: _pickResume,
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _pendingResume != null
+                          ? 'Attached: ${_pendingResume!.name}'
+                          : (widget.existing?.hasResume == true
+                                ? 'On file: ${widget.existing!.resumeFileName}. Tap to replace.'
+                                : 'Tap to upload resume (PDF or Word)'),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
               ),
-              child: Text(
-                _pendingResume != null
-                    ? 'Attached: ${_pendingResume!.name}'
-                    : (widget.existing?.hasResume == true
-                          ? 'On file: ${widget.existing!.resumeFileName}. Tap to replace.'
-                          : 'Tap to upload resume (PDF or Word)'),
-                textAlign: TextAlign.center,
-              ),
-            ),
+              if (_pendingResume == null && widget.existing?.hasResume == true) ...[
+                const SizedBox(width: 8),
+                DocumentActionIcons(
+                  storagePath: widget.existing!.resumeStoragePath!,
+                  fileName: widget.existing!.resumeFileName!,
+                  label: 'resume',
+                ),
+              ],
+            ],
           ),
         ),
 

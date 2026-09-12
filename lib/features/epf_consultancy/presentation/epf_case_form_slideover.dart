@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/utils/date_formatting.dart';
+import '../../../shared/widgets/document_actions.dart';
 import '../../../shared/widgets/slideover_panel.dart';
 import '../../users/application/user_providers.dart';
 import '../application/epf_case_providers.dart';
@@ -252,24 +253,35 @@ class _EpfCaseFormState extends ConsumerState<_EpfCaseForm> {
   Widget _documentSlotRow(EpfDocumentSlot slot) {
     final pending = _pendingDocuments[slot];
     final existingName = widget.existing?.documentFileNames[slot];
+    final existingPath = widget.existing?.documentPaths[slot];
     return FormRowLabel(
       label: slot.label,
-      child: InkWell(
-        onTap: () => _pickDocument(slot),
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-            borderRadius: BorderRadius.circular(8),
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () => _pickDocument(slot),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  pending != null
+                      ? 'Attached: ${pending.name}'
+                      : (existingName != null ? 'On file: $existingName. Tap to replace.' : 'Tap to upload'),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
           ),
-          child: Text(
-            pending != null
-                ? 'Attached: ${pending.name}'
-                : (existingName != null ? 'On file: $existingName. Tap to replace.' : 'Tap to upload'),
-            textAlign: TextAlign.center,
-          ),
-        ),
+          if (pending == null && existingPath != null && existingName != null) ...[
+            const SizedBox(width: 8),
+            DocumentActionIcons(storagePath: existingPath, fileName: existingName, label: slot.label),
+          ],
+        ],
       ),
     );
   }

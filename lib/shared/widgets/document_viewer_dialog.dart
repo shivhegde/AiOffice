@@ -30,6 +30,7 @@ class DocumentViewerDialog extends StatelessWidget {
   }
 
   bool get _isPdf => contentType == 'application/pdf' || fileName.toLowerCase().endsWith('.pdf');
+  bool get _isImage => contentType.startsWith('image/');
 
   @override
   Widget build(BuildContext context) {
@@ -76,7 +77,15 @@ class DocumentViewerDialog extends StatelessWidget {
                       allowSharing: false,
                       useActions: false,
                     )
-                  : InteractiveViewer(maxScale: 4, child: Center(child: Image.memory(bytes))),
+                  : _isImage
+                  ? InteractiveViewer(maxScale: 4, child: Center(child: Image.memory(bytes)))
+                  : Center(
+                      child: Text(
+                        'No in-app preview for this file type.\nUse the download button above to open it.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
             ),
           ],
         ),

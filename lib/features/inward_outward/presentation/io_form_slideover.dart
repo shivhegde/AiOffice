@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/doc_types.dart';
+import '../../../shared/widgets/document_actions.dart';
 import '../../../shared/widgets/slideover_panel.dart';
 import '../../users/application/user_providers.dart';
 import '../application/io_providers.dart';
@@ -347,38 +348,52 @@ class _IoFormState extends ConsumerState<_IoForm> {
         ],
         FormRowLabel(
           label: 'File Upload',
-          child: DropTarget(
-            onDragEntered: (_) => setState(() => _dragHover = true),
-            onDragExited: (_) => setState(() => _dragHover = false),
-            onDragDone: (details) {
-              setState(() => _dragHover = false);
-              _handleDrop(details);
-            },
-            child: InkWell(
-              onTap: _pickFile,
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _dragHover ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.08) : null,
-                  border: Border.all(
-                    color: _dragHover
-                        ? Theme.of(context).colorScheme.primary
-                        : Theme.of(context).colorScheme.outlineVariant,
-                    width: _dragHover ? 2 : 1,
+          child: Row(
+            children: [
+              Expanded(
+                child: DropTarget(
+                  onDragEntered: (_) => setState(() => _dragHover = true),
+                  onDragExited: (_) => setState(() => _dragHover = false),
+                  onDragDone: (details) {
+                    setState(() => _dragHover = false);
+                    _handleDrop(details);
+                  },
+                  child: InkWell(
+                    onTap: _pickFile,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: _dragHover ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.08) : null,
+                        border: Border.all(
+                          color: _dragHover
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.outlineVariant,
+                          width: _dragHover ? 2 : 1,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _pendingFile != null
+                            ? 'Attached: ${_pendingFile!.name}'
+                            : (widget.existing?.hasFile == true
+                                  ? 'On file: ${widget.existing!.fileName}. Tap to replace.'
+                                  : 'Drop a PDF or image here, or tap to browse'),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _pendingFile != null
-                      ? 'Attached: ${_pendingFile!.name}'
-                      : (widget.existing?.hasFile == true
-                            ? 'On file: ${widget.existing!.fileName}. Tap to replace.'
-                            : 'Drop a PDF or image here, or tap to browse'),
-                  textAlign: TextAlign.center,
                 ),
               ),
-            ),
+              if (_pendingFile == null && widget.existing?.hasFile == true) ...[
+                const SizedBox(width: 8),
+                DocumentActionIcons(
+                  storagePath: widget.existing!.storagePath!,
+                  fileName: widget.existing!.fileName!,
+                  label: 'attached file',
+                ),
+              ],
+            ],
           ),
         ),
         FormRowLabel(label: 'Remarks', child: TextField(controller: _remarksController, maxLines: 3)),
