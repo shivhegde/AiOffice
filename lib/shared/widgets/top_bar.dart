@@ -1,15 +1,12 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/theme/app_colors.dart';
-import '../../core/constants/roles.dart';
 import '../../features/auth/application/auth_providers.dart';
 import '../../features/users/application/user_providers.dart';
 
-/// Prototype's `.topbar` — title/crumb, global search (§3.1), a
-/// debug-only role picker (§5.1 plan decision #10), and a user chip with
-/// sign-out.
+/// Prototype's `.topbar` — title/crumb, global search (§3.1), and a user
+/// chip with sign-out.
 class TopBar extends ConsumerWidget implements PreferredSizeWidget {
   const TopBar({
     super.key,
@@ -83,13 +80,9 @@ class TopBar extends ConsumerWidget implements PreferredSizeWidget {
             ),
           ),
           const SizedBox(width: 14),
-          if (kDebugMode && !isNarrow) ...[
-            Flexible(child: _DebugRolePicker(activeRole: effectiveRole)),
-            const SizedBox(width: 14),
-          ],
           Flexible(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 220),
+              constraints: const BoxConstraints(maxWidth: 240),
               child: Container(
                 padding: const EdgeInsets.fromLTRB(5, 5, 10, 5),
                 decoration: BoxDecoration(
@@ -109,15 +102,37 @@ class TopBar extends ConsumerWidget implements PreferredSizeWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    if (!isNarrow)
-                      Flexible(
-                        child: Text(
-                          '${appUser?.displayName ?? appUser?.email ?? '...'} • ${effectiveRole.label}',
-                          style: const TextStyle(fontSize: 12.5),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
+                    Flexible(
+                      child: isNarrow
+                          ? Text(
+                              effectiveRole.label,
+                              style: TextStyle(fontSize: 12.5, color: theme.colorScheme.onSurface),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            )
+                          : Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  effectiveRole.label,
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  appUser?.displayName ?? appUser?.email ?? '...',
+                                  style: TextStyle(fontSize: 11, color: colors.textMuted),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                    ),
                     IconButton(
                       icon: const Icon(Icons.logout, size: 16),
                       tooltip: 'Sign out',
@@ -139,46 +154,5 @@ class TopBar extends ConsumerWidget implements PreferredSizeWidget {
     final parts = trimmed.split(RegExp(r'\s+'));
     final letters = parts.take(2).map((p) => p.isNotEmpty ? p[0].toUpperCase() : '').join();
     return letters.isEmpty ? trimmed[0].toUpperCase() : letters;
-  }
-}
-
-class _DebugRolePicker extends ConsumerWidget {
-  const _DebugRolePicker({required this.activeRole});
-
-  final AppRole activeRole;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Tooltip(
-          message: 'Viewing as (debug)',
-          child: Icon(Icons.bug_report_outlined, size: 15, color: onSurface),
-        ),
-        const SizedBox(width: 4),
-        Flexible(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 100),
-            child: DropdownButton<AppRole>(
-              value: activeRole,
-              isExpanded: true,
-              underline: const SizedBox.shrink(),
-              style: TextStyle(fontSize: 12.5, color: onSurface),
-              dropdownColor: Theme.of(context).colorScheme.surface,
-              items: [
-                for (final role in AppRole.values)
-                  DropdownMenuItem(
-                    value: role,
-                    child: Text(role.label, overflow: TextOverflow.ellipsis, style: TextStyle(color: onSurface)),
-                  ),
-              ],
-              onChanged: (role) => ref.read(debugRoleOverrideProvider.notifier).state = role,
-            ),
-          ),
-        ),
-      ],
-    );
   }
 }
