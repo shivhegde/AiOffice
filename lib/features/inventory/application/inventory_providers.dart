@@ -19,6 +19,6 @@ final filteredInventoryListProvider = Provider<AsyncValue<List<InventoryItem>>>(
   final search = ref.watch(inventorySearchProvider).trim().toLowerCase();
   return ref.watch(inventoryListProvider).whenData((docs) {
     if (search.isEmpty) return docs;
-    return docs.where((i) => i.item.toLowerCase().contains(search)).toList();
+    return docs.where((i) => '${i.item} ${i.size}'.toLowerCase().contains(search)).toList();
   });
 });

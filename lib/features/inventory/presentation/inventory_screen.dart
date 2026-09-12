@@ -21,15 +21,12 @@ class InventoryScreen extends ConsumerWidget {
 
     return allAsync.when(
       data: (all) {
-        final totalQty = all.fold<int>(0, (sum, i) => sum + i.qty);
-
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _StatRow(
               tiles: [
-                StatTile(label: 'Distinct Entries', value: '${all.length}'),
-                StatTile(label: 'Total Quantity', value: '$totalQty'),
+                StatTile(label: 'Number of Items', value: '${all.length}'),
               ],
             ),
             const SizedBox(height: 18),

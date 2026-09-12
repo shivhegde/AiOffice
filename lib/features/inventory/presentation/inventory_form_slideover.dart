@@ -32,9 +32,11 @@ class _InventoryForm extends ConsumerStatefulWidget {
 }
 
 class _InventoryFormState extends ConsumerState<_InventoryForm> {
+  static const _sizeOptions = ['SMALL', 'MEDIUM', 'LARGE', 'EXTRA LARGE'];
+
   final _itemController = TextEditingController();
-  final _sizeController = TextEditingController();
   final _qtyController = TextEditingController();
+  String? _size;
 
   bool _submitting = false;
   bool get _isEditing => widget.existing != null;
@@ -44,14 +46,13 @@ class _InventoryFormState extends ConsumerState<_InventoryForm> {
     super.initState();
     final e = widget.existing;
     _itemController.text = e?.item ?? '';
-    _sizeController.text = e?.size ?? '';
     _qtyController.text = e != null ? '${e.qty}' : '';
+    _size = (e?.size.isNotEmpty ?? false) ? e!.size : null;
   }
 
   @override
   void dispose() {
     _itemController.dispose();
-    _sizeController.dispose();
     _qtyController.dispose();
     super.dispose();
   }
@@ -71,7 +72,7 @@ class _InventoryFormState extends ConsumerState<_InventoryForm> {
       final draft = InventoryItem(
         id: widget.existing?.id ?? '',
         item: _itemController.text.trim(),
-        size: _sizeController.text.trim(),
+        size: _size ?? '',
         qty: int.tryParse(_qtyController.text.trim()) ?? 0,
         createdBy: widget.existing?.createdBy ?? actorUid,
         createdByName: widget.existing?.createdByName ?? actorName,
@@ -109,7 +110,16 @@ class _InventoryFormState extends ConsumerState<_InventoryForm> {
         ),
         FormRowLabel(
           label: 'Size',
-          child: TextField(controller: _sizeController),
+          child: DropdownButtonFormField<String>(
+            initialValue: _size,
+            isExpanded: true,
+            hint: const Text('Select size'),
+            items: [
+              for (final s in {..._sizeOptions, ?_size})
+                DropdownMenuItem(value: s, child: Text(s)),
+            ],
+            onChanged: (v) => setState(() => _size = v),
+          ),
         ),
         FormRowLabel(
           label: 'Qty',
