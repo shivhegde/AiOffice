@@ -26,6 +26,7 @@ class VehiclePolicyDataTable extends ConsumerWidget {
       columns: const [
         DataColumn(label: Text('Vehicle No.')),
         DataColumn(label: Text('Customer')),
+        DataColumn(label: Text('Mobile')),
         DataColumn(label: Text('Insurer')),
         DataColumn(label: Text('Policy No.')),
         DataColumn(label: Text('Premium')),
@@ -39,6 +40,7 @@ class VehiclePolicyDataTable extends ConsumerWidget {
             cells: [
               DataCell(Text(p.vehicleNumber)),
               DataCell(Text(p.customerName)),
+              DataCell(Text(p.customerMobile)),
               DataCell(Text(p.insuranceCompany)),
               DataCell(Text(p.policyNumber)),
               DataCell(Text(formatCurrencyCompact(p.premium))),

@@ -19,10 +19,26 @@ final vehiclePolicyListProvider = StreamProvider<List<VehiclePolicy>>((ref) {
   return ref.watch(vehiclePolicyRepositoryProvider).watchAll();
 });
 
-/// Backs the "Renewals" tab — policies due within 60 days, i.e. the
-/// §9.4 "generate a daily follow-up list" requirement.
+/// The three follow-up views on the "Renewals" tab — §9.4's "generate a
+/// daily follow-up list" requirement, plus a monthly window and an
+/// already-overdue view.
+enum RenewalFollowUp { daily, monthly, pending }
+
+final renewalFollowUpProvider = StateProvider<RenewalFollowUp>((ref) => RenewalFollowUp.daily);
+
+/// Backs the "Renewals" tab's follow-up list, filtered by
+/// [renewalFollowUpProvider]: daily = expiring within 7 days, monthly =
+/// within 30 days, pending = expired but not renewed within the last 30
+/// days (older lapses fall off this view).
 final renewalsDueListProvider = Provider<AsyncValue<List<VehiclePolicy>>>((ref) {
-  return ref.watch(vehiclePolicyListProvider).whenData((all) => all.where((p) => p.isExpiringWithin(60)).toList());
+  final followUp = ref.watch(renewalFollowUpProvider);
+  return ref.watch(vehiclePolicyListProvider).whenData((all) {
+    return switch (followUp) {
+      RenewalFollowUp.daily => all.where((p) => p.isExpiringWithin(7)),
+      RenewalFollowUp.monthly => all.where((p) => p.isExpiringWithin(30)),
+      RenewalFollowUp.pending => all.where((p) => p.isExpiringBetween(-30, -1)),
+    }.toList();
+  });
 });
 
 class PolicyFilterState {

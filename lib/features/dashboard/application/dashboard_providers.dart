@@ -7,6 +7,8 @@ import '../../inward_outward/domain/io_enums.dart';
 import '../../tender_emd/application/tender_providers.dart';
 import '../../tender_emd/domain/tender.dart';
 import '../../tender_emd/domain/tender_enums.dart';
+import '../../vehicle_insurance/application/vehicle_policy_providers.dart';
+import '../../vehicle_insurance/domain/vehicle_policy.dart';
 import '../../work_orders/application/work_order_providers.dart';
 import '../../work_orders/domain/work_order.dart';
 
@@ -136,11 +138,12 @@ final needsAttentionProvider = Provider<AsyncValue<List<NeedsAttentionItem>>>((r
   final inward = ref.watch(inwardListProvider);
   final tenders = ref.watch(tenderListProvider);
   final workOrders = ref.watch(workOrderListProvider);
+  final vehiclePolicies = ref.watch(vehiclePolicyListProvider);
 
-  for (final v in _allLoaded([inward, tenders, workOrders])) {
+  for (final v in _allLoaded([inward, tenders, workOrders, vehiclePolicies])) {
     if (v.isLoading) return const AsyncValue.loading();
   }
-  for (final v in _allLoaded([inward, tenders, workOrders])) {
+  for (final v in _allLoaded([inward, tenders, workOrders, vehiclePolicies])) {
     if (v.hasError) return AsyncValue.error(v.error!, v.stackTrace!);
   }
 
@@ -216,6 +219,23 @@ final needsAttentionProvider = Provider<AsyncValue<List<NeedsAttentionItem>>>((r
           reference: wo.fdNumber ?? wo.workOrderNumber,
           description: 'Fixed deposit — ${wo.workOrderNumber}',
           date: wo.fdMaturityDate!,
+        ),
+      );
+    }
+  }
+
+  for (final p in vehiclePolicies.value ?? const <VehiclePolicy>[]) {
+    if (p.isExpiringWithin(7)) {
+      final daysLeft = p.daysToExpiry;
+      items.add(
+        NeedsAttentionItem(
+          severity: AttentionSeverity.warning,
+          badgeLabel: 'Insurance expiring',
+          reference: p.policyNumber.isNotEmpty ? p.policyNumber : p.vehicleNumber,
+          description:
+              'Vehicle insurance — ${p.vehicleNumber} (${p.insuranceCompany}) expires in '
+              '${daysLeft <= 0 ? 'today' : '${daysLeft}d'}',
+          date: p.expiryDate,
         ),
       );
     }

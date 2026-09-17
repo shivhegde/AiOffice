@@ -116,6 +116,7 @@ class _RenewalsTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dueAsync = ref.watch(renewalsDueListProvider);
     final allAsync = ref.watch(vehiclePolicyListProvider);
+    final followUp = ref.watch(renewalFollowUpProvider);
 
     return allAsync.when(
       data: (all) {
@@ -140,15 +141,40 @@ class _RenewalsTab extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 18),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final f in RenewalFollowUp.values)
+                  _FollowUpButton(
+                    followUp: f,
+                    selected: followUp == f,
+                    onSelected: () => ref.read(renewalFollowUpProvider.notifier).state = f,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
             AppCard(
-              title: 'Daily Follow-up List',
+              title: switch (followUp) {
+                RenewalFollowUp.daily => 'Daily Follow-up List',
+                RenewalFollowUp.monthly => 'Monthly Follow-up List',
+                RenewalFollowUp.pending => 'Renewal Expired (<30 days)',
+              },
               child: dueAsync.when(
                 data: (due) {
                   final sorted = [...due]..sort((a, b) => a.expiryDate.compareTo(b.expiryDate));
                   if (sorted.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Center(child: Text('No renewals due in the next 60 days.')),
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      child: Center(
+                        child: Text(
+                          switch (followUp) {
+                            RenewalFollowUp.daily => 'No renewals due in the next 7 days.',
+                            RenewalFollowUp.monthly => 'No renewals due in the next 30 days.',
+                            RenewalFollowUp.pending => 'No policies expired without renewal in the last 30 days.',
+                          },
+                        ),
+                      ),
                     );
                   }
                   return VehiclePolicyDataTable(policies: sorted);
@@ -169,6 +195,27 @@ class _RenewalsTab extends ConsumerWidget {
       ),
       error: (err, _) => Padding(padding: const EdgeInsets.all(20), child: Text('Could not load renewals: $err')),
     );
+  }
+}
+
+class _FollowUpButton extends StatelessWidget {
+  const _FollowUpButton({required this.followUp, required this.selected, required this.onSelected});
+
+  final RenewalFollowUp followUp;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  String get _label => switch (followUp) {
+    RenewalFollowUp.daily => 'Daily Followup',
+    RenewalFollowUp.monthly => 'Monthly Followup',
+    RenewalFollowUp.pending => 'Renewal Expired (<30 days)',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return selected
+        ? FilledButton(onPressed: onSelected, child: Text(_label))
+        : OutlinedButton(onPressed: onSelected, child: Text(_label));
   }
 }
 
