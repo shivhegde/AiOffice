@@ -1,10 +1,15 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:printing/printing.dart';
 
-/// Builds and hands off a tabular report PDF for print/share/save — the
-/// Flutter equivalent of the prototype's `window.print()`-driven report
-/// panel (REQUIREMENTS.md §6.5).
+/// Builds a tabular report PDF and saves it straight to disk via the
+/// platform save dialog. Originally handed off to `Printing.layoutPdf`
+/// (the OS print dialog, with "Save as PDF" as one printer option among
+/// others), but that requires a reachable print service — on at least one
+/// macOS setup it failed outright with "This application doesn't support
+/// printing". Saving the bytes directly sidesteps printing entirely and
+/// matches how every other "download" action in this app already works
+/// (see `document_actions.dart`).
 class PdfReportService {
   PdfReportService._();
 
@@ -37,6 +42,12 @@ class PdfReportService {
       ),
     );
 
-    await Printing.layoutPdf(onLayout: (_) => doc.save());
+    final bytes = await doc.save();
+    await FilePicker.saveFile(fileName: '${_slugify(title)}.pdf', bytes: bytes, mimeType: 'application/pdf');
+  }
+
+  static String _slugify(String input) {
+    final cleaned = input.trim().replaceAll(RegExp(r'[^A-Za-z0-9]+'), '_');
+    return cleaned.isEmpty ? 'report' : cleaned;
   }
 }
