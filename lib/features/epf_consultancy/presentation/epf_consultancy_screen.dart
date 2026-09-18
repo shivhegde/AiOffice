@@ -7,10 +7,53 @@ import '../../../shared/widgets/stat_tile.dart';
 import '../application/epf_case_providers.dart';
 import 'widgets/epf_case_data_table.dart';
 import 'widgets/epf_case_toolbar.dart';
+import 'widgets/epf_reports_tab.dart';
 
-/// REQUIREMENTS.md §9.5.1 — EPF Consultancy dashboard + case register.
-class EpfConsultancyScreen extends ConsumerWidget {
+/// REQUIREMENTS.md §9.5.1 — EPF Consultancy dashboard + case register, and
+/// §9.5.9's Reports tab (Income and Statistics).
+class EpfConsultancyScreen extends StatefulWidget {
   const EpfConsultancyScreen({super.key});
+
+  @override
+  State<EpfConsultancyScreen> createState() => _EpfConsultancyScreenState();
+}
+
+class _EpfConsultancyScreenState extends State<EpfConsultancyScreen> with SingleTickerProviderStateMixin {
+  late final TabController _tabController = TabController(length: 2, vsync: this);
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          tabs: const [
+            Tab(text: 'Cases'),
+            Tab(text: 'Reports'),
+          ],
+        ),
+        const SizedBox(height: 14),
+        ListenableBuilder(
+          listenable: _tabController,
+          builder: (context, _) =>
+              IndexedStack(index: _tabController.index, children: const [_CasesTab(), EpfReportsTab()]),
+        ),
+      ],
+    );
+  }
+}
+
+class _CasesTab extends ConsumerWidget {
+  const _CasesTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
