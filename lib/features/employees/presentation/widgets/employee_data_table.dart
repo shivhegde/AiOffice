@@ -21,6 +21,7 @@ class EmployeeDataTable extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return AppDataTable(
       columns: const [
+        DataColumn(label: Text('S.No.')),
         DataColumn(label: Text('Employee ID')),
         DataColumn(label: Text('Name')),
         DataColumn(label: Text('Mobile')),
@@ -32,9 +33,10 @@ class EmployeeDataTable extends ConsumerWidget {
         DataColumn(label: Text('')),
       ],
       rows: [
-        for (final e in employees)
+        for (final (index, e) in employees.indexed)
           DataRow(
             cells: [
+              DataCell(Text('${index + 1}')),
               DataCell(Text(e.employeeId)),
               DataCell(Text(e.fullName)),
               DataCell(Text(e.mobileNumber)),

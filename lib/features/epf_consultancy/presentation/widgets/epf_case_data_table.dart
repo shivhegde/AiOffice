@@ -21,6 +21,7 @@ class EpfCaseDataTable extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return AppDataTable(
       columns: const [
+        DataColumn(label: Text('S.No.')),
         DataColumn(label: Text('Client ID')),
         DataColumn(label: Text('Name')),
         DataColumn(label: Text('Mobile')),
@@ -31,9 +32,10 @@ class EpfCaseDataTable extends ConsumerWidget {
         DataColumn(label: Text('')),
       ],
       rows: [
-        for (final c in cases)
+        for (final (index, c) in cases.indexed)
           DataRow(
             cells: [
+              DataCell(Text('${index + 1}')),
               DataCell(Text(c.clientId)),
               DataCell(Text(c.name)),
               DataCell(Text(c.mobile)),

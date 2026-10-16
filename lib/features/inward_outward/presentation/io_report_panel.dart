@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/services/pdf_report_service.dart';
+import '../../../core/services/report_export_service.dart';
 import '../../../core/utils/date_formatting.dart';
 import '../domain/io_document.dart';
 import '../domain/io_enums.dart';
 
-/// On-demand filtered report + PDF download, matching the prototype's
-/// `generateIoReport`/print-panel pattern (REQUIREMENTS.md §6.5).
+/// On-demand filtered report + PDF/Excel download, matching the
+/// prototype's `generateIoReport`/print-panel pattern (REQUIREMENTS.md §6.5).
 class IoReportPanel {
   IoReportPanel._();
 
@@ -27,11 +27,22 @@ class IoReportPanel {
   }
 }
 
-class _ReportBody extends StatelessWidget {
+class _ReportBody extends StatefulWidget {
   const _ReportBody({required this.type, required this.documents});
 
   final IoType type;
   final List<IoDocument> documents;
+
+  @override
+  State<_ReportBody> createState() => _ReportBodyState();
+}
+
+class _ReportBodyState extends State<_ReportBody> {
+  ReportFormat _format = ReportFormat.pdf;
+  bool _saving = false;
+
+  IoType get type => widget.type;
+  List<IoDocument> get documents => widget.documents;
 
   List<String> get _headers => type == IoType.inward
       ? const ['Inward No.', 'Date', 'Received From', 'Subject', 'Department', 'Priority', 'Receiver']
@@ -60,6 +71,19 @@ class _ReportBody extends StatelessWidget {
         ],
   ];
 
+  Future<void> _download(String title, String subtitle) async {
+    setState(() => _saving = true);
+    try {
+      await ReportExportService.save(format: _format, title: title, subtitle: subtitle, headers: _headers, rows: _rows);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save report: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = '${type.label} Report';
@@ -84,10 +108,17 @@ class _ReportBody extends StatelessWidget {
               ),
               TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close')),
               const SizedBox(width: 4),
+              SegmentedButton<ReportFormat>(
+                segments: [for (final f in ReportFormat.values) ButtonSegment(value: f, label: Text(f.label))],
+                selected: {_format},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => setState(() => _format = s.first),
+              ),
+              const SizedBox(width: 8),
               FilledButton.icon(
-                onPressed: () => PdfReportService.printReport(title: title, subtitle: subtitle, headers: _headers, rows: _rows),
+                onPressed: _saving ? null : () => _download(title, subtitle),
                 icon: const Icon(Icons.download, size: 16),
-                label: const Text('Download PDF'),
+                label: Text('Download ${_format.label}'),
               ),
             ],
           ),

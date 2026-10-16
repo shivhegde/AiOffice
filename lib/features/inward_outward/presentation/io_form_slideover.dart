@@ -7,12 +7,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/doc_types.dart';
+import '../../../core/utils/date_formatting.dart';
 import '../../../shared/widgets/document_actions.dart';
 import '../../../shared/widgets/slideover_panel.dart';
 import '../../users/application/user_providers.dart';
 import '../application/io_providers.dart';
 import '../domain/io_document.dart';
 import '../domain/io_enums.dart';
+import '../domain/io_followup.dart';
+import 'widgets/followup_history_dialog.dart';
 
 typedef PrefilledFile = ({Uint8List bytes, String name, String contentType});
 
@@ -66,10 +69,21 @@ class _IoFormState extends ConsumerState<_IoForm> {
   final _addressController = TextEditingController();
   final _trackingController = TextEditingController();
   final _sentByController = TextEditingController();
+  final _otherDocTypeController = TextEditingController();
+  final _followupRemarkController = TextEditingController();
 
+  /// Dropdown selection. When it is [_otherDocType], the saved docType is
+  /// the free text in [_otherDocTypeController] (falling back to "Other").
   late String _docType;
+
+  static const _otherDocType = 'Other';
   IoPriority _priority = IoPriority.normal;
   DispatchMode _dispatchMode = DispatchMode.courier;
+
+  /// Optional first followup captured on a new entry; saved to
+  /// `io_followups` after the document is created. Null = no followup.
+  DateTime? _followupDate;
+  FollowupStatus _followupStatus = FollowupStatus.active;
 
   PrefilledFile? _pendingFile;
   bool _submitting = false;
@@ -85,7 +99,17 @@ class _IoFormState extends ConsumerState<_IoForm> {
     super.initState();
     final existing = widget.existing;
     _date = existing?.date ?? DateTime.now();
-    _docType = existing?.docType ?? (_isInward ? kInwardDocTypes.first : kOutwardDocTypes.first);
+    final docTypes = _isInward ? kInwardDocTypes : kOutwardDocTypes;
+    final existingDocType = existing?.docType ?? '';
+    if (existingDocType.isEmpty) {
+      _docType = docTypes.first;
+    } else if (docTypes.contains(existingDocType)) {
+      _docType = existingDocType;
+    } else {
+      // A custom type entered via "Other" on a previous save.
+      _docType = _otherDocType;
+      _otherDocTypeController.text = existingDocType;
+    }
     _priority = existing?.priority ?? IoPriority.normal;
     _dispatchMode = existing?.dispatchMode ?? DispatchMode.courier;
     _pendingFile = widget.prefilledFile;
@@ -114,6 +138,8 @@ class _IoFormState extends ConsumerState<_IoForm> {
     _addressController.dispose();
     _trackingController.dispose();
     _sentByController.dispose();
+    _otherDocTypeController.dispose();
+    _followupRemarkController.dispose();
     super.dispose();
   }
 
@@ -169,10 +195,23 @@ class _IoFormState extends ConsumerState<_IoForm> {
     });
   }
 
+  String get _resolvedDocType {
+    if (_docType != _otherDocType) return _docType;
+    final custom = _otherDocTypeController.text.trim();
+    return custom.isEmpty ? _otherDocType : custom;
+  }
+
   Future<void> _submit() async {
     if (_subjectController.text.trim().isEmpty || _departmentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Subject and Department are required.')),
+      );
+      return;
+    }
+    final followupRemark = _followupRemarkController.text.trim();
+    if (!_isEditing && _followupDate == null && followupRemark.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pick a Followup Date for the followup remark, or clear the remark.')),
       );
       return;
     }
@@ -189,7 +228,7 @@ class _IoFormState extends ConsumerState<_IoForm> {
         docNumber: widget.existing?.docNumber ?? '',
         year: _date.year,
         date: _date,
-        docType: _docType,
+        docType: _resolvedDocType,
         department: _departmentController.text.trim(),
         subject: _subjectController.text.trim(),
         remarks: _remarksController.text.trim(),
@@ -216,7 +255,7 @@ class _IoFormState extends ConsumerState<_IoForm> {
       if (_isEditing) {
         await repo.update(document: draft, actorUid: actorUid, actorName: actorName);
       } else {
-        await repo.create(
+        final created = await repo.create(
           draft: draft,
           actorUid: actorUid,
           actorName: actorName,
@@ -224,6 +263,16 @@ class _IoFormState extends ConsumerState<_IoForm> {
           fileName: _pendingFile?.name,
           fileContentType: _pendingFile?.contentType,
         );
+        if (_followupDate != null) {
+          await repo.addFollowup(
+            document: created,
+            followupDate: _followupDate!,
+            remark: followupRemark,
+            status: _followupStatus,
+            actorUid: actorUid,
+            actorName: actorName,
+          );
+        }
       }
 
       if (mounted) {
@@ -322,6 +371,14 @@ class _IoFormState extends ConsumerState<_IoForm> {
             onChanged: (v) => setState(() => _docType = v ?? docTypes.first),
           ),
         ),
+        if (_docType == _otherDocType)
+          FormRowLabel(
+            label: 'Specify Document Type',
+            child: TextField(
+              controller: _otherDocTypeController,
+              decoration: const InputDecoration(hintText: 'Leave blank to keep as "Other"'),
+            ),
+          ),
         if (_isInward) ...[
           FormRowLabel(
             label: 'Priority',
@@ -397,6 +454,70 @@ class _IoFormState extends ConsumerState<_IoForm> {
           ),
         ),
         FormRowLabel(label: 'Remarks', child: TextField(controller: _remarksController, maxLines: 3)),
+        if (_isEditing)
+          FormRowLabel(
+            label: 'Followups',
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.history, size: 16),
+              label: const Text('Open Followup History to add or update followups'),
+              onPressed: () => FollowupHistoryDialog.show(context, widget.existing!),
+            ),
+          )
+        else ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: FormRowLabel(
+                  label: 'Followup Date',
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _followupDate ?? DateTime.now(),
+                              firstDate: DateTime(2015),
+                              lastDate: DateTime(2100),
+                            );
+                            if (picked != null) setState(() => _followupDate = picked);
+                          },
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(_followupDate == null ? 'No followup' : formatDisplayDate(_followupDate!)),
+                          ),
+                        ),
+                      ),
+                      if (_followupDate != null)
+                        IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          tooltip: 'Clear followup date',
+                          onPressed: () => setState(() => _followupDate = null),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FormRowLabel(
+                  label: 'Followup Status',
+                  child: DropdownButtonFormField<FollowupStatus>(
+                    initialValue: _followupStatus,
+                    isExpanded: true,
+                    items: [for (final st in FollowupStatus.values) DropdownMenuItem(value: st, child: Text(st.label))],
+                    onChanged: (v) => setState(() => _followupStatus = v ?? FollowupStatus.active),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          FormRowLabel(
+            label: 'Followup Remarks',
+            child: TextField(controller: _followupRemarkController, maxLines: 2),
+          ),
+        ],
         const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,

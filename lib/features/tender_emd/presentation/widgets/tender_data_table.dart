@@ -23,6 +23,7 @@ class TenderDataTable extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return AppDataTable(
       columns: const [
+        DataColumn(label: Text('S.No.')),
         DataColumn(label: Text('Tender No.')),
         DataColumn(label: Text('Tender Name')),
         DataColumn(label: Text('Department')),
@@ -35,9 +36,10 @@ class TenderDataTable extends ConsumerWidget {
         DataColumn(label: Text('')),
       ],
       rows: [
-        for (final tender in tenders)
+        for (final (index, tender) in tenders.indexed)
           DataRow(
             cells: [
+              DataCell(Text('${index + 1}')),
               DataCell(Text(tender.tenderNumber)),
               DataCell(SizedBox(width: 220, child: Text(tender.tenderName, overflow: TextOverflow.ellipsis))),
               DataCell(Text(tender.departmentName)),

@@ -5,10 +5,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/firestore_paths.dart';
 import '../../../core/services/firestore_counter_service.dart';
 import '../../../core/services/storage_upload_service.dart';
+import '../../../core/utils/date_formatting.dart';
 import '../../audit/data/audit_log_repository.dart';
 import '../../audit/domain/audit_entry.dart';
 import '../domain/io_document.dart';
 import '../domain/io_enums.dart';
+import '../domain/io_followup.dart';
 
 /// Inward/Outward CRUD (REQUIREMENTS.md §6). Document numbers are
 /// generated atomically via [FirestoreCounterService] (Phase 1 plan
@@ -30,6 +32,8 @@ class IoRepository {
 
   CollectionReference<Map<String, dynamic>> get _collection =>
       _firestore.collection(FirestorePaths.inwardOutwardDocuments);
+
+  CollectionReference<Map<String, dynamic>> get _followups => _firestore.collection(FirestorePaths.ioFollowups);
 
   Stream<List<IoDocument>> watchByType(IoType type) {
     return _collection
@@ -165,6 +169,14 @@ class IoRepository {
     if (document.hasFile) {
       await _storage.delete(document.storagePath!);
     }
+    final followups = await _followups.where('documentId', isEqualTo: document.id).get();
+    if (followups.docs.isNotEmpty) {
+      final batch = _firestore.batch();
+      for (final f in followups.docs) {
+        batch.delete(f.reference);
+      }
+      await batch.commit();
+    }
     await _collection.doc(document.id).delete();
     await _auditLog.log(
       actorUid: actorUid,
@@ -173,6 +185,107 @@ class IoRepository {
       module: 'inward_outward',
       targetId: document.id,
       targetLabel: '${document.docNumber} — ${document.subject}',
+    );
+  }
+
+  // ---- Followups ----
+
+  /// All followups for one direction (Inward or Outward). Single-field
+  /// filter only, so no composite index is needed; callers group/sort
+  /// client-side.
+  Stream<List<IoFollowup>> watchFollowupsByType(IoType type) {
+    return _followups
+        .where('type', isEqualTo: type.wireValue)
+        .snapshots()
+        .map((snap) => snap.docs.map((d) => IoFollowup.fromMap(d.id, d.data())).toList());
+  }
+
+  Future<void> addFollowup({
+    required IoDocument document,
+    required DateTime followupDate,
+    required String remark,
+    required FollowupStatus status,
+    required String actorUid,
+    required String actorName,
+  }) async {
+    final ref = _followups.doc();
+    final followup = IoFollowup(
+      id: ref.id,
+      documentId: document.id,
+      docNumber: document.docNumber,
+      type: document.type,
+      followupDate: followupDate,
+      remark: remark,
+      status: status,
+      createdBy: actorUid,
+      createdByName: actorName,
+    );
+    await ref.set(followup.toMap());
+    await _auditLog.log(
+      actorUid: actorUid,
+      actorName: actorName,
+      action: AuditAction.create,
+      module: 'inward_outward',
+      targetId: document.id,
+      targetLabel: '${document.docNumber} followup added (${formatDisplayDate(followupDate)})',
+    );
+  }
+
+  Future<void> updateFollowup({
+    required IoFollowup followup,
+    required DateTime followupDate,
+    required String remark,
+    required FollowupStatus status,
+    required String actorUid,
+    required String actorName,
+  }) async {
+    await _followups.doc(followup.id).update({
+      'followupDate': Timestamp.fromDate(followupDate),
+      'remark': remark,
+      'status': status.wireValue,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await _auditLog.log(
+      actorUid: actorUid,
+      actorName: actorName,
+      action: AuditAction.update,
+      module: 'inward_outward',
+      targetId: followup.documentId,
+      targetLabel: '${followup.docNumber} followup (${formatDisplayDate(followupDate)}) updated',
+    );
+  }
+
+  Future<void> setFollowupStatus({
+    required IoFollowup followup,
+    required FollowupStatus status,
+    required String actorUid,
+    required String actorName,
+  }) async {
+    await _followups.doc(followup.id).update({'status': status.wireValue, 'updatedAt': FieldValue.serverTimestamp()});
+    await _auditLog.log(
+      actorUid: actorUid,
+      actorName: actorName,
+      action: AuditAction.update,
+      module: 'inward_outward',
+      targetId: followup.documentId,
+      targetLabel:
+          '${followup.docNumber} followup (${formatDisplayDate(followup.followupDate)}) marked ${status.label}',
+    );
+  }
+
+  Future<void> deleteFollowup({
+    required IoFollowup followup,
+    required String actorUid,
+    required String actorName,
+  }) async {
+    await _followups.doc(followup.id).delete();
+    await _auditLog.log(
+      actorUid: actorUid,
+      actorName: actorName,
+      action: AuditAction.delete,
+      module: 'inward_outward',
+      targetId: followup.documentId,
+      targetLabel: '${followup.docNumber} followup (${formatDisplayDate(followup.followupDate)}) deleted',
     );
   }
 }

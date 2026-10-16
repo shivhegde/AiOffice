@@ -18,15 +18,17 @@ class InventoryDataTable extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return AppDataTable(
       columns: const [
+        DataColumn(label: Text('S.No.')),
         DataColumn(label: Text('Item')),
         DataColumn(label: Text('Size')),
         DataColumn(label: Text('Qty')),
         DataColumn(label: Text('')),
       ],
       rows: [
-        for (final i in items)
+        for (final (index, i) in items.indexed)
           DataRow(
             cells: [
+              DataCell(Text('${index + 1}')),
               DataCell(Text(i.item)),
               DataCell(Text(i.size.isEmpty ? '—' : i.size)),
               DataCell(Text('${i.qty}')),

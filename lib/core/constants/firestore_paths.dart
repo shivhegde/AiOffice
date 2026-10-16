@@ -6,6 +6,7 @@ class FirestorePaths {
   static const users = 'users';
   static const counters = 'counters';
   static const inwardOutwardDocuments = 'inward_outward_documents';
+  static const ioFollowups = 'io_followups';
   static const auditLog = 'audit_log';
   static const tenders = 'tenders';
   static const workOrders = 'work_orders';

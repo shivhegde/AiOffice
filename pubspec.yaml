@@ -50,6 +50,7 @@ dependencies:
   desktop_drop: ^0.7.1
   collection: ^1.19.1
   package_info_plus: ^10.2.1
+  archive: ^4.0.9
 
 dev_dependencies:
   flutter_test:

@@ -24,6 +24,7 @@ class VehiclePolicyDataTable extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return AppDataTable(
       columns: const [
+        DataColumn(label: Text('S.No.')),
         DataColumn(label: Text('Vehicle No.')),
         DataColumn(label: Text('Customer')),
         DataColumn(label: Text('Mobile')),
@@ -35,9 +36,10 @@ class VehiclePolicyDataTable extends ConsumerWidget {
         DataColumn(label: Text('')),
       ],
       rows: [
-        for (final p in policies)
+        for (final (index, p) in policies.indexed)
           DataRow(
             cells: [
+              DataCell(Text('${index + 1}')),
               DataCell(Text(p.vehicleNumber)),
               DataCell(Text(p.customerName)),
               DataCell(Text(p.customerMobile)),

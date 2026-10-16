@@ -19,6 +19,7 @@ class FixedDepositDataTable extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppDataTable(
       columns: const [
+        DataColumn(label: Text('S.No.')),
         DataColumn(label: Text('FD No.')),
         DataColumn(label: Text('Bank')),
         DataColumn(label: Text('Linked Work Order')),
@@ -28,9 +29,10 @@ class FixedDepositDataTable extends StatelessWidget {
         DataColumn(label: Text('')),
       ],
       rows: [
-        for (final wo in workOrders)
+        for (final (index, wo) in workOrders.indexed)
           DataRow(
             cells: [
+              DataCell(Text('${index + 1}')),
               DataCell(Text(wo.fdNumber ?? '—')),
               DataCell(Text(wo.fdBankName ?? '—')),
               DataCell(Text(wo.workOrderNumber)),

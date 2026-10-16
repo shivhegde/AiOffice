@@ -6,6 +6,7 @@ import '../../audit/presentation/audit_log_screen.dart';
 import '../data/io_repository.dart';
 import '../domain/io_document.dart';
 import '../domain/io_enums.dart';
+import '../domain/io_followup.dart';
 
 final storageUploadServiceProvider = Provider((ref) => StorageUploadService(ref.watch(firebaseStorageProvider)));
 
@@ -23,6 +24,21 @@ final inwardListProvider = StreamProvider<List<IoDocument>>((ref) {
 
 final outwardListProvider = StreamProvider<List<IoDocument>>((ref) {
   return ref.watch(ioRepositoryProvider).watchByType(IoType.outward);
+});
+
+/// Followups for one direction, grouped by parent document id and sorted
+/// newest followup date first (the order the history dialog shows).
+final ioFollowupsByDocumentProvider = StreamProvider.family<Map<String, List<IoFollowup>>, IoType>((ref, type) {
+  return ref.watch(ioRepositoryProvider).watchFollowupsByType(type).map((followups) {
+    final grouped = <String, List<IoFollowup>>{};
+    for (final f in followups) {
+      grouped.putIfAbsent(f.documentId, () => []).add(f);
+    }
+    for (final list in grouped.values) {
+      list.sort((a, b) => b.followupDate.compareTo(a.followupDate));
+    }
+    return grouped;
+  });
 });
 
 /// Client-side filter state for the Inward/Outward toolbars — mirrors the

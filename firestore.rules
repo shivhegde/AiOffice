@@ -52,6 +52,14 @@ service cloud.firestore {
       allow update, delete: if canManageDocuments();
     }
 
+    // Followup entries for Inward/Outward documents, one doc per followup,
+    // linked via `documentId` (see lib/features/inward_outward/domain/io_followup.dart).
+    match /io_followups/{followupId} {
+      allow read: if isKnownUser();
+      allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if canManageDocuments();
+    }
+
     match /tenders/{docId} {
       allow read: if isKnownUser();
       allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;

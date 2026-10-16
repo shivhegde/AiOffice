@@ -22,6 +22,7 @@ class WorkOrderDataTable extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return AppDataTable(
       columns: const [
+        DataColumn(label: Text('S.No.')),
         DataColumn(label: Text('WO No.')),
         DataColumn(label: Text('Department')),
         DataColumn(label: Text('Contract Type')),
@@ -34,9 +35,10 @@ class WorkOrderDataTable extends ConsumerWidget {
         DataColumn(label: Text('')),
       ],
       rows: [
-        for (final wo in workOrders)
+        for (final (index, wo) in workOrders.indexed)
           DataRow(
             cells: [
+              DataCell(Text('${index + 1}')),
               DataCell(Text(wo.workOrderNumber)),
               DataCell(Text(wo.departmentName)),
               DataCell(
