@@ -7,7 +7,8 @@ import '../data/version_gate_repository.dart';
 import '../domain/version_gate_config.dart';
 
 final versionGateRepositoryProvider = Provider<VersionGateRepository>((ref) {
-  return VersionGateRepository(ref.watch(firestoreProvider));
+  // Always production: the gate controls the installed build, not a data environment.
+  return VersionGateRepository(ref.watch(productionFirestoreProvider));
 });
 
 final versionGateConfigProvider = StreamProvider<VersionGateConfig>((ref) {

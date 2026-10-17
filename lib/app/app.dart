@@ -24,7 +24,7 @@ class _AppState extends ConsumerState<App> {
     ref.listenManual(authStateChangesProvider, (previous, next) {
       final user = next.value;
       if (user != null) {
-        ref.read(userRepositoryProvider).ensureUserDocument(user);
+        ref.read(productionUserRepositoryProvider).ensureUserDocument(user);
       }
     }, fireImmediately: true);
   }

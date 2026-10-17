@@ -7,20 +7,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/app.dart';
+import 'core/config/app_environment.dart';
 import 'firebase_options.dart';
-
-/// Local dev defaults to the Firebase Local Emulator Suite (Phase 1 plan
-/// decision #7) so day-to-day iteration doesn't leave test cruft in the
-/// real `officeai-registry` project. Override with
-/// `--dart-define=USE_FIREBASE_EMULATOR=false` to point at the live
-/// project instead.
-const bool _useFirebaseEmulator = bool.fromEnvironment('USE_FIREBASE_EMULATOR', defaultValue: kDebugMode);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  if (_useFirebaseEmulator) {
+  // Test data is kept out of production by the per-admin environment
+  // switch (see AppEnvironment), so debug runs use the live project too;
+  // the local emulator is opt-in via --dart-define=USE_FIREBASE_EMULATOR=true.
+  if (useFirebaseEmulator) {
     final host = kIsWeb ? 'localhost' : (defaultTargetPlatform == TargetPlatform.android ? '10.0.2.2' : 'localhost');
     await FirebaseAuth.instance.useAuthEmulator(host, 9099);
     FirebaseFirestore.instance.useFirestoreEmulator(host, 8080);

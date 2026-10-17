@@ -5,7 +5,8 @@ import '../data/licence_repository.dart';
 import '../domain/licence_config.dart';
 
 final licenceRepositoryProvider = Provider<LicenceRepository>((ref) {
-  return LicenceRepository(ref.watch(firestoreProvider));
+  // Always production: the licence applies app-wide, not per data environment.
+  return LicenceRepository(ref.watch(productionFirestoreProvider));
 });
 
 final licenceConfigProvider = StreamProvider<LicenceConfig>((ref) {

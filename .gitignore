@@ -49,3 +49,8 @@ app.*.map.json
 
 # Inno Setup output
 installer/Output/
+
+# Firestore exports from tool/FirestoreImportExport.py (may contain production data)
+/*.json
+!/firebase.json
+!/firestore.indexes.json

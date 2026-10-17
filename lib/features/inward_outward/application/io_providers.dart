@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/config/app_environment.dart';
 import '../../../core/providers/firebase_providers.dart';
 import '../../../core/services/storage_upload_service.dart';
 import '../../audit/presentation/audit_log_screen.dart';
@@ -8,7 +9,10 @@ import '../domain/io_document.dart';
 import '../domain/io_enums.dart';
 import '../domain/io_followup.dart';
 
-final storageUploadServiceProvider = Provider((ref) => StorageUploadService(ref.watch(firebaseStorageProvider)));
+final storageUploadServiceProvider = Provider((ref) {
+  final env = ref.watch(activeEnvironmentProvider).value ?? AppEnvironment.production;
+  return StorageUploadService(ref.watch(firebaseStorageProvider), pathPrefix: env.storagePrefix);
+});
 
 final ioRepositoryProvider = Provider<IoRepository>((ref) {
   return IoRepository(

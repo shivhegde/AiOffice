@@ -19,6 +19,19 @@ service firebase.storage {
     // an orphaned file with no linked document — not a usable record.
     function signedIn() { return request.auth != null; }
 
+    // Test environments (see lib/core/config/app_environment.dart): every
+    // file an admin uploads while working in test database <envName> is
+    // stored under env/<envName>/ with the same sub-paths as production.
+    // Same checks as the production paths below, with the content types
+    // of all modules combined.
+    match /env/{envName}/{allPaths=**} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+                   && request.resource.size < 20 * 1024 * 1024
+                   && request.resource.contentType.matches('application/pdf|image/.*|application/msword|application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      allow delete: if signedIn();
+    }
+
     match /inward_outward/{type}/{year}/{docId}/{fileName} {
       allow read: if signedIn();
       allow write: if signedIn()

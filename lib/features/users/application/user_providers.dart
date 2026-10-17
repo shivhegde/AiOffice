@@ -6,16 +6,30 @@ import '../../auth/application/auth_providers.dart';
 import '../data/user_repository.dart';
 import '../domain/app_user.dart';
 
+/// Users in the active environment's database (Manage Users, role checks).
 final userRepositoryProvider = Provider<UserRepository>((ref) {
   return UserRepository(ref.watch(firestoreProvider));
 });
 
-/// The signed-in user's `users/{uid}` document, or null if signed out /
-/// not yet created.
+/// Users in the production database — sign-in bootstrap only
+/// ([UserRepository.ensureUserDocument]), since identity and the
+/// environment choice always live in production.
+final productionUserRepositoryProvider = Provider<UserRepository>((ref) {
+  return UserRepository(ref.watch(productionFirestoreProvider));
+});
+
+/// The signed-in user's `users/{uid}` document in the active environment,
+/// or null if signed out / not yet created. Stays loading until the
+/// environment is resolved, so the app shell never briefly mounts
+/// production data for an admin who is about to be routed to a test
+/// environment.
 final currentAppUserProvider = StreamProvider<AppUser?>((ref) {
   final authState = ref.watch(authStateChangesProvider);
   final firebaseUser = authState.value;
   if (firebaseUser == null) return Stream.value(null);
+  final env = ref.watch(activeEnvironmentProvider);
+  if (env.hasError) return Stream.error(env.error!, env.stackTrace);
+  if (env.isLoading) return Stream<AppUser?>.multi((_) {});
   return ref.watch(userRepositoryProvider).watchUser(firebaseUser.uid);
 });
 

@@ -6,6 +6,9 @@ import '../../app/theme/app_colors.dart';
 import '../../features/auth/application/auth_providers.dart';
 import '../../features/users/application/user_providers.dart';
 import '../../features/users/domain/app_user.dart';
+import '../../core/config/app_environment.dart';
+import '../../core/providers/firebase_providers.dart';
+import 'environment_banner.dart';
 import 'licence_expiry_banner.dart';
 import 'sidebar_nav.dart';
 import 'top_bar.dart';
@@ -49,6 +52,7 @@ class AppShell extends ConsumerWidget {
     final isNarrow = MediaQuery.sizeOf(context).width < 760;
     final (title, crumb) = _titles[currentRoute] ?? (currentRoute, '');
     final appUserAsync = ref.watch(currentAppUserProvider);
+    final env = ref.watch(activeEnvironmentProvider).value ?? AppEnvironment.production;
 
     void navigate(String route) {
       if (isNarrow) Navigator.of(context).maybePop();
@@ -72,13 +76,14 @@ class AppShell extends ConsumerWidget {
                     onMenuTap: isNarrow ? () => Scaffold.of(innerContext).openDrawer() : null,
                   ),
                 ),
+                const EnvironmentBanner(),
                 const LicenceExpiryBanner(),
                 Expanded(
                   child: Container(
                     color: Theme.of(context).scaffoldBackgroundColor,
                     child: appUserAsync.when(
                       data: (appUser) => appUser == null
-                          ? const _PreparingAccount()
+                          ? (env.isProduction ? const _PreparingAccount() : _NoUserInEnvironment(env: env))
                           : !appUser.isActive
                           ? _AccountNotActiveScreen(appUser: appUser)
                           : SingleChildScrollView(
@@ -156,6 +161,47 @@ class _AccountNotActiveScreen extends ConsumerWidget {
               isPending
                   ? 'Your account (${appUser.email}) has been created but needs an admin to approve it before you can sign in.'
                   : 'Your account (${appUser.email}) has been disabled. Contact an admin if you believe this is a mistake.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textMuted),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton(
+              onPressed: () => ref.read(authRepositoryProvider).signOut(),
+              child: const Text('Sign out'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// An admin routed to a test environment whose database has no
+/// `users/{uid}` record for them yet. Sign-in only auto-creates the record
+/// in production, and rules don't let a client self-grant admin, so the
+/// record has to be added from the Firebase console.
+class _NoUserInEnvironment extends ConsumerWidget {
+  const _NoUserInEnvironment({required this.env});
+
+  final AppEnvironment env;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.appColors;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.person_off_outlined, size: 32, color: colors.textMuted),
+            const SizedBox(height: 14),
+            Text('No account in "${env.name}"', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 6),
+            Text(
+              'Your user record does not exist in the "${env.name}" test database yet. Add it in the Firebase '
+              'console (database "${env.name}", collection users), or set your environment back to '
+              '"production" on your production user record.',
               textAlign: TextAlign.center,
               style: TextStyle(color: colors.textMuted),
             ),
