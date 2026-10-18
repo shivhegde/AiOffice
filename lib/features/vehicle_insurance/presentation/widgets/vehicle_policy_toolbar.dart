@@ -1,15 +1,13 @@
-import 'dart:convert';
-import 'dart:typed_data';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/roles.dart';
+import '../../../../core/services/report_export_service.dart';
 import '../../../../core/utils/date_formatting.dart';
 import '../../../../shared/widgets/app_toolbar.dart';
 import '../../../../shared/widgets/role_gate.dart';
 import '../../application/vehicle_policy_providers.dart';
+import '../../domain/vehicle_followup.dart';
 import '../../domain/vehicle_insurance_enums.dart';
 import '../../domain/vehicle_policy.dart';
 import '../vehicle_policy_form_slideover.dart';
@@ -43,23 +41,46 @@ class VehiclePolicyToolbar extends ConsumerWidget {
             onChanged: (v) => ref.read(policyFilterProvider.notifier).state = filter.copyWith(status: v),
           ),
         ),
-        OutlinedButton.icon(
-          onPressed: () async {
+        PopupMenuButton<ReportFormat>(
+          tooltip: 'Export table',
+          onSelected: (format) async {
             final messenger = ScaffoldMessenger.of(context);
-            final all = ref.read(filteredPolicyListProvider).value ?? const <VehiclePolicy>[];
-            final csv = _toCsv(all);
+            final policies = ref.read(filteredPolicyListProvider).value ?? const <VehiclePolicy>[];
+            final followups = ref.read(vehicleFollowupsByPolicyProvider).value ?? const {};
             try {
-              await FilePicker.saveFile(
-                fileName: 'vehicle_policies.csv',
-                bytes: Uint8List.fromList(utf8.encode(csv)),
-                mimeType: 'text/csv',
+              await ReportExportService.save(
+                format: format,
+                title: 'Vehicle Insurance Policies',
+                subtitle:
+                    'Generated on ${formatDisplayDateTime(DateTime.now())} • '
+                    '${policies.length} polic${policies.length == 1 ? 'y' : 'ies'}',
+                headers: _exportHeaders,
+                rows: _exportRows(policies, followups),
               );
             } catch (e) {
               messenger.showSnackBar(SnackBar(content: Text('Could not export: $e')));
             }
           },
-          icon: const Icon(Icons.file_download_outlined, size: 16),
-          label: const Text('Export'),
+          itemBuilder: (_) => [
+            for (final f in ReportFormat.values)
+              PopupMenuItem(
+                value: f,
+                child: Row(
+                  children: [
+                    Icon(f == ReportFormat.pdf ? Icons.picture_as_pdf_outlined : Icons.table_chart_outlined, size: 18),
+                    const SizedBox(width: 10),
+                    Text('Export as ${f.label}'),
+                  ],
+                ),
+              ),
+          ],
+          child: IgnorePointer(
+            child: OutlinedButton.icon(
+              onPressed: () {},
+              icon: const Icon(Icons.file_download_outlined, size: 16),
+              label: const Text('Export'),
+            ),
+          ),
         ),
         RoleGate(
           minRole: AppRole.powerUser,
@@ -74,26 +95,47 @@ class VehiclePolicyToolbar extends ConsumerWidget {
   }
 }
 
-String _toCsv(List<VehiclePolicy> policies) {
-  final buffer = StringBuffer()
-    ..writeln(
-      'Vehicle Number,Customer Name,Mobile,Insurance Company,Policy Number,Policy Type,Premium,Start Date,Expiry Date,Status',
-    );
-  for (final p in policies) {
-    buffer.writeln(
-      [
-        p.vehicleNumber,
-        p.customerName,
-        p.customerMobile,
-        p.insuranceCompany,
-        p.policyNumber,
-        p.policyType.label,
-        p.premium.toStringAsFixed(0),
-        formatDisplayDate(p.startDate),
-        formatDisplayDate(p.expiryDate),
-        p.status.label,
-      ].map((f) => '"${f.replaceAll('"', '""')}"').join(','),
-    );
-  }
-  return buffer.toString();
+const _exportHeaders = [
+  'S.No.',
+  'Vehicle No.',
+  'Vehicle Type',
+  'Customer',
+  'Mobile',
+  'Insurer',
+  'Policy No.',
+  'Policy Type',
+  'Premium',
+  'Start Date',
+  'Expiry Date',
+  'Status',
+  'Followup Date',
+  'Followup Remark',
+  'Followup Status',
+];
+
+/// Same rows and followup summary as the on-screen table.
+List<List<String>> _exportRows(List<VehiclePolicy> policies, Map<String, List<VehicleFollowup>> followups) {
+  return [
+    for (final (index, p) in policies.indexed)
+      () {
+        final current = currentVehicleFollowup(followups[p.id] ?? const []);
+        return [
+          '${index + 1}',
+          p.vehicleNumber,
+          p.vehicleTypeLabel,
+          p.customerName,
+          p.customerMobile,
+          p.insuranceCompany,
+          p.policyNumber,
+          p.policyTypesLabel,
+          p.premium.toStringAsFixed(0),
+          formatDisplayDate(p.startDate),
+          formatDisplayDate(p.expiryDate),
+          p.status.label,
+          current != null ? formatDisplayDate(current.followupDate) : '—',
+          current?.remark ?? '—',
+          current?.status.label ?? '—',
+        ];
+      }(),
+  ];
 }

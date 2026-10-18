@@ -14,6 +14,7 @@ class FirestorePaths {
   static const candidates = 'candidates';
   static const inventoryItems = 'inventory_items';
   static const vehiclePolicies = 'vehicle_policies';
+  static const vehicleFollowups = 'vehicle_followups';
   static const epfCases = 'epf_cases';
   static const epfFollowups = 'epf_followups';
   static const departments = 'departments';

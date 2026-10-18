@@ -356,7 +356,7 @@ This module manages the organization's own book of insurance customers and polic
 
 **Customer Management:** Customer name, Mobile number, Email, Address, Aadhaar/PAN (optional), Notes.
 
-**Vehicle Management:** Vehicle number, RC details, Vehicle type (Bike / Car / Bus / Truck / Taxi / Auto), Make and model, Manufacturing year, Engine and chassis number, Financer details.
+**Vehicle Management:** Vehicle number, Vehicle type (Bike / Car / Bus / Truck / Taxi / Auto / Commercial Vehicle / Goods Carry / SWM Vehicle / Other with free text), Make and model, Manufacturing year, Engine and chassis number, Financer details.
 
 **Insurance Policy:** Insurance company, Policy number, Policy type (Third Party / Comprehensive), IDV, NCB, Premium, Commission, Start date, Expiry date, Policy PDF upload.
 

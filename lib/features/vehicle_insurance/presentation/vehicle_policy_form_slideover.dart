@@ -4,12 +4,15 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/utils/date_formatting.dart';
 import '../../../shared/widgets/document_actions.dart';
 import '../../../shared/widgets/slideover_panel.dart';
 import '../../users/application/user_providers.dart';
 import '../application/vehicle_policy_providers.dart';
+import '../domain/vehicle_followup.dart';
 import '../domain/vehicle_insurance_enums.dart';
 import '../domain/vehicle_policy.dart';
+import 'widgets/vehicle_followup_history_dialog.dart';
 
 /// Create/edit form for a Vehicle Policy — matches REQUIREMENTS.md §9.4's
 /// Customer Management / Vehicle Management / Insurance Policy sections.
@@ -44,8 +47,10 @@ class _VehiclePolicyFormState extends ConsumerState<_VehiclePolicyForm> {
   final _customerIdController = TextEditingController();
   final _customerNotesController = TextEditingController();
   final _vehicleNumberController = TextEditingController();
-  final _rcDetailsController = TextEditingController();
   final _makeModelController = TextEditingController();
+  final _vehicleTypeOtherController = TextEditingController();
+  final _policyTypeOtherController = TextEditingController();
+  final _followupRemarkController = TextEditingController();
   final _manufacturingYearController = TextEditingController();
   final _engineNumberController = TextEditingController();
   final _chassisNumberController = TextEditingController();
@@ -58,12 +63,18 @@ class _VehiclePolicyFormState extends ConsumerState<_VehiclePolicyForm> {
   final _commissionController = TextEditingController();
 
   VehicleType _vehicleType = VehicleType.car;
-  PolicyType _policyType = PolicyType.comprehensive;
+  Set<PolicyType> _policyTypes = {PolicyType.comprehensive};
   PolicyStatus _status = PolicyStatus.active;
+
+  /// Optional first followup captured on a new policy; saved to
+  /// `vehicle_followups` after the policy is created. Null = no followup.
+  DateTime? _followupDate;
+  FollowupStatus _followupStatus = FollowupStatus.active;
   late DateTime _startDate;
   late DateTime _expiryDate;
 
   ({Uint8List bytes, String name, String contentType})? _pendingPolicyFile;
+  final Map<VehicleDocumentSlot, ({Uint8List bytes, String name, String contentType})> _pendingDocuments = {};
   bool _submitting = false;
   bool get _isEditing => widget.existing != null;
 
@@ -78,8 +89,8 @@ class _VehiclePolicyFormState extends ConsumerState<_VehiclePolicyForm> {
     _customerIdController.text = e?.customerIdNumber ?? '';
     _customerNotesController.text = e?.customerNotes ?? '';
     _vehicleNumberController.text = e?.vehicleNumber ?? '';
-    _rcDetailsController.text = e?.rcDetails ?? '';
     _makeModelController.text = e?.makeModel ?? '';
+    _vehicleTypeOtherController.text = e?.vehicleTypeOther ?? '';
     _manufacturingYearController.text = e?.manufacturingYear != null ? '${e!.manufacturingYear}' : '';
     _engineNumberController.text = e?.engineNumber ?? '';
     _chassisNumberController.text = e?.chassisNumber ?? '';
@@ -92,7 +103,8 @@ class _VehiclePolicyFormState extends ConsumerState<_VehiclePolicyForm> {
     _commissionController.text = e != null && e.commission > 0 ? e.commission.toStringAsFixed(0) : '';
 
     _vehicleType = e?.vehicleType ?? VehicleType.car;
-    _policyType = e?.policyType ?? PolicyType.comprehensive;
+    _policyTypes = e != null ? {...e.policyTypes} : {PolicyType.comprehensive};
+    _policyTypeOtherController.text = e?.policyTypeOther ?? '';
     _status = e?.status ?? PolicyStatus.active;
     _startDate = e?.startDate ?? DateTime.now();
     _expiryDate = e?.expiryDate ?? DateTime.now().add(const Duration(days: 365));
@@ -107,8 +119,10 @@ class _VehiclePolicyFormState extends ConsumerState<_VehiclePolicyForm> {
     _customerIdController.dispose();
     _customerNotesController.dispose();
     _vehicleNumberController.dispose();
-    _rcDetailsController.dispose();
     _makeModelController.dispose();
+    _vehicleTypeOtherController.dispose();
+    _policyTypeOtherController.dispose();
+    _followupRemarkController.dispose();
     _manufacturingYearController.dispose();
     _engineNumberController.dispose();
     _chassisNumberController.dispose();
@@ -159,6 +173,61 @@ class _VehiclePolicyFormState extends ConsumerState<_VehiclePolicyForm> {
     });
   }
 
+  Future<void> _pickDocument(VehicleDocumentSlot slot) async {
+    final file = await FilePicker.pickFile(type: FileType.custom, allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg']);
+    if (file == null) return;
+    final bytes = await file.readAsBytes();
+    final extension = file.name.contains('.') ? file.name.split('.').last.toLowerCase() : '';
+    if (!mounted) return;
+    setState(() {
+      _pendingDocuments[slot] = (
+        bytes: bytes,
+        name: file.name,
+        contentType: switch (extension) {
+          'pdf' => 'application/pdf',
+          'jpg' || 'jpeg' => 'image/jpeg',
+          _ => 'image/$extension',
+        },
+      );
+    });
+  }
+
+  Widget _documentSlotRow(VehicleDocumentSlot slot) {
+    final pending = _pendingDocuments[slot];
+    final existingName = widget.existing?.documentFileNames[slot];
+    final existingPath = widget.existing?.documentPaths[slot];
+    return FormRowLabel(
+      label: slot.label,
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () => _pickDocument(slot),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  pending != null
+                      ? 'Attached: ${pending.name}'
+                      : (existingName != null ? 'On file: $existingName. Tap to replace.' : 'Tap to upload'),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
+          if (pending == null && existingPath != null && existingName != null) ...[
+            const SizedBox(width: 8),
+            DocumentActionIcons(storagePath: existingPath, fileName: existingName, label: slot.label),
+          ],
+        ],
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     if (_customerNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Customer name is required.')));
@@ -170,6 +239,17 @@ class _VehiclePolicyFormState extends ConsumerState<_VehiclePolicyForm> {
     }
     if (_policyNumberController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Policy number is required.')));
+      return;
+    }
+    if (_policyTypes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select at least one policy type.')));
+      return;
+    }
+    final followupRemark = _followupRemarkController.text.trim();
+    if (!_isEditing && _followupDate == null && followupRemark.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pick a Followup Date for the followup remark, or clear the remark.')),
+      );
       return;
     }
 
@@ -188,8 +268,8 @@ class _VehiclePolicyFormState extends ConsumerState<_VehiclePolicyForm> {
         customerIdNumber: _customerIdController.text.trim(),
         customerNotes: _customerNotesController.text.trim(),
         vehicleNumber: _vehicleNumberController.text.trim(),
-        rcDetails: _rcDetailsController.text.trim(),
         vehicleType: _vehicleType,
+        vehicleTypeOther: _vehicleType == VehicleType.other ? _vehicleTypeOtherController.text.trim() : '',
         makeModel: _makeModelController.text.trim(),
         manufacturingYear: int.tryParse(_manufacturingYearController.text.trim()),
         engineNumber: _engineNumberController.text.trim(),
@@ -197,7 +277,8 @@ class _VehiclePolicyFormState extends ConsumerState<_VehiclePolicyForm> {
         financerDetails: _financerDetailsController.text.trim(),
         insuranceCompany: _insuranceCompanyController.text.trim(),
         policyNumber: _policyNumberController.text.trim(),
-        policyType: _policyType,
+        policyTypes: [for (final t in PolicyType.values) if (_policyTypes.contains(t)) t],
+        policyTypeOther: _policyTypes.contains(PolicyType.other) ? _policyTypeOtherController.text.trim() : '',
         idv: double.tryParse(_idvController.text.trim()) ?? 0,
         ncb: double.tryParse(_ncbController.text.trim()) ?? 0,
         premium: double.tryParse(_premiumController.text.trim()) ?? 0,
@@ -206,6 +287,8 @@ class _VehiclePolicyFormState extends ConsumerState<_VehiclePolicyForm> {
         expiryDate: _expiryDate,
         policyStoragePath: widget.existing?.policyStoragePath,
         policyFileName: widget.existing?.policyFileName,
+        documentPaths: widget.existing?.documentPaths ?? const {},
+        documentFileNames: widget.existing?.documentFileNames ?? const {},
         status: _status,
         renewedAt: _status == PolicyStatus.renewed ? (widget.existing?.renewedAt ?? DateTime.now()) : null,
         createdBy: widget.existing?.createdBy ?? actorUid,
@@ -215,9 +298,31 @@ class _VehiclePolicyFormState extends ConsumerState<_VehiclePolicyForm> {
 
       final repo = ref.read(vehiclePolicyRepositoryProvider);
       if (_isEditing) {
-        await repo.update(policy: draft, actorUid: actorUid, actorName: actorName, policyFile: _pendingPolicyFile);
+        await repo.update(
+          policy: draft,
+          actorUid: actorUid,
+          actorName: actorName,
+          policyFile: _pendingPolicyFile,
+          documentFiles: _pendingDocuments,
+        );
       } else {
-        await repo.create(draft: draft, actorUid: actorUid, actorName: actorName, policyFile: _pendingPolicyFile);
+        final created = await repo.create(
+          draft: draft,
+          actorUid: actorUid,
+          actorName: actorName,
+          policyFile: _pendingPolicyFile,
+          documentFiles: _pendingDocuments,
+        );
+        if (_followupDate != null) {
+          await repo.addFollowup(
+            policy: created,
+            followupDate: _followupDate!,
+            remark: followupRemark,
+            status: _followupStatus,
+            actorUid: actorUid,
+            actorName: actorName,
+          );
+        }
       }
 
       if (mounted) {
@@ -321,10 +426,14 @@ class _VehiclePolicyFormState extends ConsumerState<_VehiclePolicyForm> {
             ),
           ],
         ),
-        FormRowLabel(
-          label: 'RC Details',
-          child: TextField(controller: _rcDetailsController),
-        ),
+        if (_vehicleType == VehicleType.other)
+          FormRowLabel(
+            label: 'Other Vehicle Type',
+            child: TextField(
+              controller: _vehicleTypeOtherController,
+              decoration: const InputDecoration(hintText: 'Type the vehicle type'),
+            ),
+          ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -385,21 +494,35 @@ class _VehiclePolicyFormState extends ConsumerState<_VehiclePolicyForm> {
             ),
           ],
         ),
+        FormRowLabel(
+          label: 'Policy Type (select one or more)',
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final t in PolicyType.values)
+                FilterChip(
+                  label: Text(t.label),
+                  selected: _policyTypes.contains(t),
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (selected) => setState(() {
+                    _policyTypes = selected ? {..._policyTypes, t} : ({..._policyTypes}..remove(t));
+                  }),
+                ),
+            ],
+          ),
+        ),
+        if (_policyTypes.contains(PolicyType.other))
+          FormRowLabel(
+            label: 'Other Policy Type',
+            child: TextField(
+              controller: _policyTypeOtherController,
+              decoration: const InputDecoration(hintText: 'Type the policy type'),
+            ),
+          ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: FormRowLabel(
-                label: 'Policy Type',
-                child: DropdownButtonFormField<PolicyType>(
-                  initialValue: _policyType,
-                  isExpanded: true,
-                  items: [for (final t in PolicyType.values) DropdownMenuItem(value: t, child: Text(t.label))],
-                  onChanged: (v) => setState(() => _policyType = v ?? PolicyType.comprehensive),
-                ),
-              ),
-            ),
-            const SizedBox(width: 10),
             Expanded(
               child: FormRowLabel(
                 label: 'Status',
@@ -493,6 +616,76 @@ class _VehiclePolicyFormState extends ConsumerState<_VehiclePolicyForm> {
             ],
           ),
         ),
+
+        _sectionHeader('Documents'),
+        for (final slot in VehicleDocumentSlot.values) _documentSlotRow(slot),
+
+        _sectionHeader('Followup'),
+        if (_isEditing)
+          FormRowLabel(
+            label: 'Followups',
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.history, size: 16),
+              label: const Text('Open Followup History to add or update followups'),
+              onPressed: () => VehicleFollowupHistoryDialog.show(context, widget.existing!),
+            ),
+          )
+        else ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: FormRowLabel(
+                  label: 'Followup Date',
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _followupDate ?? DateTime.now(),
+                              firstDate: DateTime(2015),
+                              lastDate: DateTime(2100),
+                            );
+                            if (picked != null) setState(() => _followupDate = picked);
+                          },
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(_followupDate == null ? 'No followup' : formatDisplayDate(_followupDate!)),
+                          ),
+                        ),
+                      ),
+                      if (_followupDate != null)
+                        IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          tooltip: 'Clear followup date',
+                          onPressed: () => setState(() => _followupDate = null),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FormRowLabel(
+                  label: 'Followup Status',
+                  child: DropdownButtonFormField<FollowupStatus>(
+                    initialValue: _followupStatus,
+                    isExpanded: true,
+                    items: [for (final st in FollowupStatus.values) DropdownMenuItem(value: st, child: Text(st.label))],
+                    onChanged: (v) => setState(() => _followupStatus = v ?? FollowupStatus.active),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          FormRowLabel(
+            label: 'Followup Remarks',
+            child: TextField(controller: _followupRemarkController, maxLines: 2),
+          ),
+        ],
+
 
         const SizedBox(height: 14),
         Row(

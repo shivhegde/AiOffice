@@ -11,9 +11,11 @@ import '../../../../shared/widgets/role_gate.dart';
 import '../../../../shared/widgets/status_chip.dart';
 import '../../../users/application/user_providers.dart';
 import '../../application/vehicle_policy_providers.dart';
+import '../../domain/vehicle_followup.dart';
 import '../../domain/vehicle_insurance_enums.dart';
 import '../../domain/vehicle_policy.dart';
 import '../vehicle_policy_form_slideover.dart';
+import 'vehicle_followup_history_dialog.dart';
 
 class VehiclePolicyDataTable extends ConsumerWidget {
   const VehiclePolicyDataTable({super.key, required this.policies});
@@ -22,17 +24,23 @@ class VehiclePolicyDataTable extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final followups = ref.watch(vehicleFollowupsByPolicyProvider).value ?? const {};
     return AppDataTable(
       columns: const [
         DataColumn(label: Text('S.No.')),
         DataColumn(label: Text('Vehicle No.')),
+        DataColumn(label: Text('Vehicle Type')),
         DataColumn(label: Text('Customer')),
         DataColumn(label: Text('Mobile')),
         DataColumn(label: Text('Insurer')),
         DataColumn(label: Text('Policy No.')),
+        DataColumn(label: Text('Policy Type')),
         DataColumn(label: Text('Premium')),
         DataColumn(label: Text('Expiry')),
         DataColumn(label: Text('Status')),
+        DataColumn(label: Text('Followup Date')),
+        DataColumn(label: Text('Followup Remark')),
+        DataColumn(label: Text('Followup Status')),
         DataColumn(label: Text('')),
       ],
       rows: [
@@ -41,13 +49,16 @@ class VehiclePolicyDataTable extends ConsumerWidget {
             cells: [
               DataCell(Text('${index + 1}')),
               DataCell(Text(p.vehicleNumber)),
+              DataCell(Text(p.vehicleTypeLabel)),
               DataCell(Text(p.customerName)),
               DataCell(Text(p.customerMobile)),
               DataCell(Text(p.insuranceCompany)),
               DataCell(Text(p.policyNumber)),
+              DataCell(SizedBox(width: 200, child: Text(p.policyTypesLabel, overflow: TextOverflow.ellipsis))),
               DataCell(Text(formatCurrencyCompact(p.premium))),
               DataCell(Text(formatDisplayDate(p.expiryDate))),
               DataCell(_StatusChipForPolicy(policy: p)),
+              ..._followupCells(followups[p.id]),
               DataCell(_RowActions(policy: p)),
             ],
           ),
@@ -82,6 +93,25 @@ class _StatusChipForPolicy extends StatelessWidget {
   }
 }
 
+/// Followup Date / Remark / Status cells showing [currentVehicleFollowup]
+/// — the earliest active followup, else the latest closed one.
+List<DataCell> _followupCells(List<VehicleFollowup>? followups) {
+  final current = currentVehicleFollowup(followups ?? const []);
+  if (current == null) {
+    return const [DataCell(Text('—')), DataCell(Text('—')), DataCell(Text('—'))];
+  }
+  return [
+    DataCell(Text(formatDisplayDate(current.followupDate))),
+    DataCell(SizedBox(width: 200, child: Text(current.remark, overflow: TextOverflow.ellipsis))),
+    DataCell(
+      StatusChip(
+        label: current.status.label,
+        variant: current.isActive ? StatusChipVariant.warn : StatusChipVariant.good,
+      ),
+    ),
+  ];
+}
+
 class _RowActions extends ConsumerWidget {
   const _RowActions({required this.policy});
 
@@ -93,12 +123,17 @@ class _RowActions extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
+          icon: const Icon(Icons.history, size: 17),
+          tooltip: 'Followup History',
+          onPressed: () => VehicleFollowupHistoryDialog.show(context, policy),
+        ),
+        IconButton(
           icon: const Icon(Icons.chat_outlined, size: 17),
           tooltip: 'WhatsApp reminder',
           onPressed: () => WhatsappLauncher.open(
             phone: policy.customerMobile,
             message:
-                'Hello ${policy.customerName}, your ${policy.vehicleType.label} insurance '
+                'Hello ${policy.customerName}, your ${policy.vehicleTypeLabel} insurance '
                 '(${policy.vehicleNumber}, Policy ${policy.policyNumber}) expires on '
                 '${formatDisplayDate(policy.expiryDate)}. Please contact us to renew.',
           ),

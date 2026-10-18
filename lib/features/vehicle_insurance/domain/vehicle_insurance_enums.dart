@@ -4,7 +4,12 @@ enum VehicleType {
   bus('bus', 'Bus'),
   truck('truck', 'Truck'),
   taxi('taxi', 'Taxi'),
-  auto('auto', 'Auto');
+  auto('auto', 'Auto'),
+  commercialVehicle('commercial_vehicle', 'Commercial Vehicle'),
+  goodsCarry('goods_carry', 'Goods Carry'),
+  swmVehicle('swm_vehicle', 'SWM Vehicle'),
+  // Paired with free text on the policy (`vehicleTypeOther`); keep last.
+  other('other', 'Other');
 
   const VehicleType(this.wireValue, this.label);
 
@@ -16,9 +21,14 @@ enum VehicleType {
   }
 }
 
+/// A policy can carry several types; [PolicyType.other] pairs with free
+/// text on the policy (`policyTypeOther`).
 enum PolicyType {
+  comprehensive('comprehensive', 'Comprehensive'),
   thirdParty('third_party', 'Third Party'),
-  comprehensive('comprehensive', 'Comprehensive');
+  personalAccident('personal_accident', 'Personal Accident Coverage'),
+  ownDamage('own_damage', 'Own Damage'),
+  other('other', 'Other');
 
   const PolicyType(this.wireValue, this.label);
 
@@ -43,5 +53,25 @@ enum PolicyStatus {
 
   static PolicyStatus fromWireValue(String? value) {
     return PolicyStatus.values.firstWhere((s) => s.wireValue == value, orElse: () => PolicyStatus.active);
+  }
+}
+
+/// Supporting-document upload slots on a policy, alongside the policy PDF.
+enum VehicleDocumentSlot {
+  aadhaar('aadhaar', 'Aadhaar Card'),
+  pan('pan', 'PAN Card'),
+  previousPolicy('previous_policy', 'Previous Insurance Policy'),
+  rc('rc', 'RC');
+
+  const VehicleDocumentSlot(this.wireValue, this.label);
+
+  final String wireValue;
+  final String label;
+
+  static VehicleDocumentSlot? fromWireValue(String? value) {
+    for (final s in VehicleDocumentSlot.values) {
+      if (s.wireValue == value) return s;
+    }
+    return null;
   }
 }

@@ -4,6 +4,7 @@ import '../../../core/providers/firebase_providers.dart';
 import '../../audit/presentation/audit_log_screen.dart';
 import '../../inward_outward/application/io_providers.dart' show storageUploadServiceProvider;
 import '../data/vehicle_policy_repository.dart';
+import '../domain/vehicle_followup.dart';
 import '../domain/vehicle_insurance_enums.dart';
 import '../domain/vehicle_policy.dart';
 
@@ -17,6 +18,21 @@ final vehiclePolicyRepositoryProvider = Provider<VehiclePolicyRepository>((ref) 
 
 final vehiclePolicyListProvider = StreamProvider<List<VehiclePolicy>>((ref) {
   return ref.watch(vehiclePolicyRepositoryProvider).watchAll();
+});
+
+/// Vehicle policy followups grouped by policy id, each list newest
+/// followup date first (the order the history dialog shows).
+final vehicleFollowupsByPolicyProvider = StreamProvider<Map<String, List<VehicleFollowup>>>((ref) {
+  return ref.watch(vehiclePolicyRepositoryProvider).watchFollowups().map((followups) {
+    final grouped = <String, List<VehicleFollowup>>{};
+    for (final f in followups) {
+      grouped.putIfAbsent(f.policyId, () => []).add(f);
+    }
+    for (final list in grouped.values) {
+      list.sort((a, b) => b.followupDate.compareTo(a.followupDate));
+    }
+    return grouped;
+  });
 });
 
 /// The three follow-up views on the "Renewals" tab — §9.4's "generate a
