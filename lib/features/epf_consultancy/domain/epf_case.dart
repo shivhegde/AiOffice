@@ -30,12 +30,10 @@ class EpfCase {
     required this.dateOfBirth,
     required this.gender,
     this.uanNumber = '',
-    this.previousCompany = '',
+    this.password = '',
     this.currentCompany = '',
-    this.dateOfJoining,
-    this.exitDate,
-    this.memberId = '',
-    required this.service,
+    required this.services,
+    this.otherService = '',
     required this.stage,
     this.documentPaths = const {},
     this.documentFileNames = const {},
@@ -67,14 +65,18 @@ class EpfCase {
 
   // Employment Details
   final String uanNumber;
-  final String previousCompany;
+
+  /// The client's EPF member-portal (UAN) password, kept so staff can log
+  /// in on their behalf. Masked in the form; deliberately not searchable.
+  final String password;
   final String currentCompany;
-  final DateTime? dateOfJoining;
-  final DateTime? exitDate;
-  final String memberId;
 
   // Service + Case Tracking
-  final EpfService service;
+  /// One or more services, in [EpfService] declaration order.
+  final List<EpfService> services;
+
+  /// What "Other Services" means for this case, when it is selected.
+  final String otherService;
   final CaseStage stage;
 
   // Document Manager
@@ -86,13 +88,24 @@ class EpfCase {
   final double amountPaid;
   final DateTime? feePaidAt;
 
-  // Follow-up log
+  /// Notes from the earlier free-text follow-up log. Kept read-only (shown
+  /// in Followup History); new followups live in `epf_followups`.
   final List<EpfFollowUp> followUps;
 
   final String createdBy;
   final String createdByName;
   final DateTime? createdAt;
   final DateTime? updatedAt;
+
+  /// Display text for the selected services, e.g. "KYC Update, Name
+  /// Change" — "Other Services" is replaced by its free text when given.
+  String get servicesLabel {
+    if (services.isEmpty) return '—';
+    return [
+      for (final s in services)
+        if (s == EpfService.other && otherService.trim().isNotEmpty) otherService.trim() else s.label,
+    ].join(', ');
+  }
 
   double get pendingAmount => fee - amountPaid;
   bool get isFullyPaid => pendingAmount <= 0;
@@ -111,15 +124,6 @@ class EpfCase {
     if (paidAt == null) return false;
     final now = DateTime.now();
     return paidAt.year == now.year && paidAt.month == now.month && paidAt.day == now.day;
-  }
-
-  EpfFollowUp? get latestFollowUp => followUps.isEmpty ? null : followUps.last;
-
-  bool get hasFollowUpToday {
-    final latest = latestFollowUp;
-    if (latest == null) return false;
-    final now = DateTime.now();
-    return latest.date.year == now.year && latest.date.month == now.month && latest.date.day == now.day;
   }
 
   /// §9.5.1 dashboard "Renewal Alerts" — the source spec doesn't define
@@ -153,12 +157,10 @@ class EpfCase {
       dateOfBirth: (data['dateOfBirth'] as Timestamp?)?.toDate() ?? DateTime.now(),
       gender: Gender.fromWireValue(data['gender'] as String?),
       uanNumber: data['uanNumber'] as String? ?? '',
-      previousCompany: data['previousCompany'] as String? ?? '',
+      password: data['password'] as String? ?? '',
       currentCompany: data['currentCompany'] as String? ?? '',
-      dateOfJoining: (data['dateOfJoining'] as Timestamp?)?.toDate(),
-      exitDate: (data['exitDate'] as Timestamp?)?.toDate(),
-      memberId: data['memberId'] as String? ?? '',
-      service: EpfService.fromWireValue(data['service'] as String?),
+      services: _servicesFromMap(data),
+      otherService: data['otherService'] as String? ?? '',
       stage: CaseStage.fromWireValue(data['stage'] as String?),
       documentPaths: {
         for (final entry in rawDocPaths.entries)
@@ -179,6 +181,19 @@ class EpfCase {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );
+  }
+
+  /// `services` (list) since multi-service; older cases have only the
+  /// single `service` string.
+  static List<EpfService> _servicesFromMap(Map<String, dynamic> data) {
+    final raw = data['services'];
+    if (raw is List && raw.isNotEmpty) {
+      final wire = raw.whereType<String>().toSet();
+      return [for (final s in EpfService.values) if (wire.contains(s.wireValue)) s];
+    }
+    final legacy = data['service'];
+    if (legacy is String && legacy.isNotEmpty) return [EpfService.fromWireValue(legacy)];
+    return const [];
   }
 
   Map<String, dynamic> toMap() {
@@ -205,12 +220,13 @@ class EpfCase {
       'dateOfBirth': Timestamp.fromDate(dateOfBirth),
       'gender': gender.wireValue,
       'uanNumber': uanNumber,
-      'previousCompany': previousCompany,
+      'password': password,
       'currentCompany': currentCompany,
-      if (dateOfJoining != null) 'dateOfJoining': Timestamp.fromDate(dateOfJoining!),
-      if (exitDate != null) 'exitDate': Timestamp.fromDate(exitDate!),
-      'memberId': memberId,
-      'service': service.wireValue,
+      'services': [for (final s in services) s.wireValue],
+      'otherService': services.contains(EpfService.other) ? otherService : '',
+      // Single-service field kept so builds from before multi-service
+      // still show something sensible for new cases.
+      if (services.isNotEmpty) 'service': services.first.wireValue,
       'stage': stage.wireValue,
       'documentPaths': {for (final entry in documentPaths.entries) entry.key.wireValue: entry.value},
       'documentFileNames': {for (final entry in documentFileNames.entries) entry.key.wireValue: entry.value},

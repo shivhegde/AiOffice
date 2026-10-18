@@ -11,7 +11,8 @@ import '../../users/application/user_providers.dart';
 import '../application/epf_case_providers.dart';
 import '../domain/epf_case.dart';
 import '../domain/epf_enums.dart';
-import '../domain/epf_follow_up.dart';
+import '../domain/epf_followup.dart';
+import 'widgets/epf_followup_history_dialog.dart';
 
 /// Create/edit form for an EPF Case — matches REQUIREMENTS.md §9.5.2
 /// (Personal/Employment Details) / §9.5.3 (Service) / §9.5.4 (Case
@@ -50,25 +51,28 @@ class _EpfCaseFormState extends ConsumerState<_EpfCaseForm> {
   final _aadhaarController = TextEditingController();
   final _panController = TextEditingController();
   final _uanController = TextEditingController();
-  final _previousCompanyController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _currentCompanyController = TextEditingController();
-  final _memberIdController = TextEditingController();
   final _feeController = TextEditingController();
   final _amountPaidController = TextEditingController();
-  final _newFollowUpController = TextEditingController();
+  final _followupRemarkController = TextEditingController();
+  final _otherServiceController = TextEditingController();
 
   late DateTime _dateOfBirth;
-  DateTime? _dateOfJoining;
-  DateTime? _exitDate;
   DateTime? _feePaidAt;
   Gender _gender = Gender.male;
-  EpfService _service = EpfService.pfWithdrawal;
+  Set<EpfService> _services = {};
   CaseStage _stage = CaseStage.newClient;
-  late List<EpfFollowUp> _followUps;
+
+  /// Optional first followup captured on a new case; saved to
+  /// `epf_followups` after the case is created. Null = no followup.
+  DateTime? _followupDate;
+  FollowupStatus _followupStatus = FollowupStatus.active;
 
   final Map<EpfDocumentSlot, ({Uint8List bytes, String name, String contentType})> _pendingDocuments = {};
 
   bool _submitting = false;
+  bool _showPassword = false;
   bool get _isEditing => widget.existing != null;
 
   @override
@@ -84,20 +88,17 @@ class _EpfCaseFormState extends ConsumerState<_EpfCaseForm> {
     _aadhaarController.text = e?.aadhaarNumber ?? '';
     _panController.text = e?.panNumber ?? '';
     _uanController.text = e?.uanNumber ?? '';
-    _previousCompanyController.text = e?.previousCompany ?? '';
+    _passwordController.text = e?.password ?? '';
     _currentCompanyController.text = e?.currentCompany ?? '';
-    _memberIdController.text = e?.memberId ?? '';
     _feeController.text = e != null && e.fee > 0 ? e.fee.toStringAsFixed(0) : '';
     _amountPaidController.text = e != null && e.amountPaid > 0 ? e.amountPaid.toStringAsFixed(0) : '';
 
     _dateOfBirth = e?.dateOfBirth ?? DateTime(1990, 1, 1);
-    _dateOfJoining = e?.dateOfJoining;
-    _exitDate = e?.exitDate;
     _feePaidAt = e?.feePaidAt;
     _gender = e?.gender ?? Gender.male;
-    _service = e?.service ?? EpfService.pfWithdrawal;
+    _services = {...?e?.services};
+    _otherServiceController.text = e?.otherService ?? '';
     _stage = e?.stage ?? CaseStage.newClient;
-    _followUps = [...?e?.followUps];
   }
 
   @override
@@ -111,12 +112,12 @@ class _EpfCaseFormState extends ConsumerState<_EpfCaseForm> {
     _aadhaarController.dispose();
     _panController.dispose();
     _uanController.dispose();
-    _previousCompanyController.dispose();
+    _passwordController.dispose();
     _currentCompanyController.dispose();
-    _memberIdController.dispose();
     _feeController.dispose();
     _amountPaidController.dispose();
-    _newFollowUpController.dispose();
+    _followupRemarkController.dispose();
+    _otherServiceController.dispose();
     super.dispose();
   }
 
@@ -157,15 +158,6 @@ class _EpfCaseFormState extends ConsumerState<_EpfCaseForm> {
     });
   }
 
-  void _addFollowUp() {
-    final note = _newFollowUpController.text.trim();
-    if (note.isEmpty) return;
-    setState(() {
-      _followUps = [..._followUps, EpfFollowUp(date: DateTime.now(), note: note)];
-      _newFollowUpController.clear();
-    });
-  }
-
   Future<void> _submit() async {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Name is required.')));
@@ -173,6 +165,17 @@ class _EpfCaseFormState extends ConsumerState<_EpfCaseForm> {
     }
     if (_mobileController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mobile number is required.')));
+      return;
+    }
+    if (_services.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select at least one service.')));
+      return;
+    }
+    final followupRemark = _followupRemarkController.text.trim();
+    if (!_isEditing && _followupDate == null && followupRemark.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pick a Followup Date for the followup remark, or clear the remark.')),
+      );
       return;
     }
 
@@ -198,19 +201,17 @@ class _EpfCaseFormState extends ConsumerState<_EpfCaseForm> {
         dateOfBirth: _dateOfBirth,
         gender: _gender,
         uanNumber: _uanController.text.trim(),
-        previousCompany: _previousCompanyController.text.trim(),
+        password: _passwordController.text,
         currentCompany: _currentCompanyController.text.trim(),
-        dateOfJoining: _dateOfJoining,
-        exitDate: _exitDate,
-        memberId: _memberIdController.text.trim(),
-        service: _service,
+        services: [for (final s in EpfService.values) if (_services.contains(s)) s],
+        otherService: _services.contains(EpfService.other) ? _otherServiceController.text.trim() : '',
         stage: _stage,
         documentPaths: widget.existing?.documentPaths ?? const {},
         documentFileNames: widget.existing?.documentFileNames ?? const {},
         fee: double.tryParse(_feeController.text.trim()) ?? 0,
         amountPaid: amountPaid,
         feePaidAt: amountPaid > 0 ? (_feePaidAt ?? DateTime.now()) : null,
-        followUps: _followUps,
+        followUps: widget.existing?.followUps ?? const [],
         createdBy: widget.existing?.createdBy ?? actorUid,
         createdByName: widget.existing?.createdByName ?? actorName,
         createdAt: widget.existing?.createdAt,
@@ -220,7 +221,22 @@ class _EpfCaseFormState extends ConsumerState<_EpfCaseForm> {
       if (_isEditing) {
         await repo.update(epfCase: draft, actorUid: actorUid, actorName: actorName, documentFiles: _pendingDocuments);
       } else {
-        await repo.create(draft: draft, actorUid: actorUid, actorName: actorName, documentFiles: _pendingDocuments);
+        final created = await repo.create(
+          draft: draft,
+          actorUid: actorUid,
+          actorName: actorName,
+          documentFiles: _pendingDocuments,
+        );
+        if (_followupDate != null) {
+          await repo.addFollowup(
+            epfCase: created,
+            followupDate: _followupDate!,
+            remark: followupRemark,
+            status: _followupStatus,
+            actorUid: actorUid,
+            actorName: actorName,
+          );
+        }
       }
 
       if (mounted) {
@@ -378,51 +394,68 @@ class _EpfCaseFormState extends ConsumerState<_EpfCaseForm> {
         ),
 
         _sectionHeader('Employment Details'),
-        FormRowLabel(
-          label: 'UAN Number',
-          child: TextField(controller: _uanController),
-        ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
               child: FormRowLabel(
-                label: 'Previous Company',
-                child: TextField(controller: _previousCompanyController),
+                label: 'UAN Number',
+                child: TextField(controller: _uanController),
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: FormRowLabel(
-                label: 'Current Company',
-                child: TextField(controller: _currentCompanyController),
+                label: 'Password',
+                child: TextField(
+                  controller: _passwordController,
+                  obscureText: !_showPassword,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  decoration: InputDecoration(
+                    suffixIcon: IconButton(
+                      tooltip: _showPassword ? 'Hide password' : 'Show password',
+                      icon: Icon(_showPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 18),
+                      onPressed: () => setState(() => _showPassword = !_showPassword),
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
         ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: _dateButton('Date of Joining', _dateOfJoining, (d) => setState(() => _dateOfJoining = d))),
-            const SizedBox(width: 10),
-            Expanded(child: _dateButton('Exit Date', _exitDate, (d) => setState(() => _exitDate = d))),
-          ],
-        ),
         FormRowLabel(
-          label: 'Member ID',
-          child: TextField(controller: _memberIdController),
+          label: 'Current Company',
+          child: TextField(controller: _currentCompanyController),
         ),
 
         _sectionHeader('Service & Case Tracking'),
         FormRowLabel(
-          label: 'Service',
-          child: DropdownButtonFormField<EpfService>(
-            initialValue: _service,
-            isExpanded: true,
-            items: [for (final s in EpfService.values) DropdownMenuItem(value: s, child: Text(s.label))],
-            onChanged: (v) => setState(() => _service = v ?? EpfService.pfWithdrawal),
+          label: 'Services (select one or more)',
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final s in EpfService.values)
+                FilterChip(
+                  label: Text(s.label),
+                  selected: _services.contains(s),
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (selected) => setState(() {
+                    _services = selected ? {..._services, s} : ({..._services}..remove(s));
+                  }),
+                ),
+            ],
           ),
         ),
+        if (_services.contains(EpfService.other))
+          FormRowLabel(
+            label: 'Other Service',
+            child: TextField(
+              controller: _otherServiceController,
+              decoration: const InputDecoration(hintText: 'Describe the other service'),
+            ),
+          ),
         FormRowLabel(
           label: 'Stage',
           child: DropdownButtonFormField<CaseStage>(
@@ -457,26 +490,71 @@ class _EpfCaseFormState extends ConsumerState<_EpfCaseForm> {
         ),
         _dateButton('Payment Date', _feePaidAt, (d) => setState(() => _feePaidAt = d)),
 
-        _sectionHeader('Follow-up Log'),
-        for (final f in _followUps)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Text('${formatDisplayDate(f.date)} — ${f.note}', style: Theme.of(context).textTheme.bodySmall),
-          ),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _newFollowUpController,
-                decoration: const InputDecoration(isDense: true, hintText: 'Add a follow-up note'),
-                onSubmitted: (_) => _addFollowUp(),
-              ),
+        _sectionHeader('Followup'),
+        if (_isEditing)
+          FormRowLabel(
+            label: 'Followups',
+            child: OutlinedButton.icon(
+              icon: const Icon(Icons.history, size: 16),
+              label: const Text('Open Followup History to add or update followups'),
+              onPressed: () => EpfFollowupHistoryDialog.show(context, widget.existing!),
             ),
-            const SizedBox(width: 8),
-            IconButton(icon: const Icon(Icons.add_circle_outline), onPressed: _addFollowUp),
-          ],
-        ),
+          )
+        else ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: FormRowLabel(
+                  label: 'Followup Date',
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _followupDate ?? DateTime.now(),
+                              firstDate: DateTime(2015),
+                              lastDate: DateTime(2100),
+                            );
+                            if (picked != null) setState(() => _followupDate = picked);
+                          },
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(_followupDate == null ? 'No followup' : formatDisplayDate(_followupDate!)),
+                          ),
+                        ),
+                      ),
+                      if (_followupDate != null)
+                        IconButton(
+                          icon: const Icon(Icons.clear, size: 16),
+                          tooltip: 'Clear followup date',
+                          onPressed: () => setState(() => _followupDate = null),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FormRowLabel(
+                  label: 'Followup Status',
+                  child: DropdownButtonFormField<FollowupStatus>(
+                    initialValue: _followupStatus,
+                    isExpanded: true,
+                    items: [for (final st in FollowupStatus.values) DropdownMenuItem(value: st, child: Text(st.label))],
+                    onChanged: (v) => setState(() => _followupStatus = v ?? FollowupStatus.active),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          FormRowLabel(
+            label: 'Followup Remarks',
+            child: TextField(controller: _followupRemarkController, maxLines: 2),
+          ),
+        ],
 
         const SizedBox(height: 14),
         Row(

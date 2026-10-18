@@ -172,7 +172,7 @@ class _FollowupHistoryDialogState extends ConsumerState<FollowupHistoryDialog> {
               Text(doc.subject, style: TextStyle(color: colors.textMuted), overflow: TextOverflow.ellipsis),
               const SizedBox(height: 14),
               if (canManage) ...[
-                _AddFollowupRow(
+                FollowupInputRow(
                   // Re-key on edit target so the status dropdown picks up the loaded value.
                   key: ValueKey(_editing?.id),
                   isEditing: _editing != null,
@@ -266,8 +266,10 @@ class _FollowupHistoryDialogState extends ConsumerState<FollowupHistoryDialog> {
   }
 }
 
-class _AddFollowupRow extends StatelessWidget {
-  const _AddFollowupRow({
+/// Date + status + remark input with Add/Update button, shared by the
+/// Inward/Outward and EPF followup history dialogs.
+class FollowupInputRow extends StatelessWidget {
+  const FollowupInputRow({
     super.key,
     required this.isEditing,
     required this.onCancelEdit,

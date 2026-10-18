@@ -377,10 +377,10 @@ Total Clients, Today's Applications, Pending Cases, Completed Cases, Today's Inc
 
 #### 9.5.2 Client Management
 **Personal Details:** Client ID (auto), Name, Father's Name, Mobile No, Alternate Mobile, Email, Address, Aadhaar Number, PAN Number, DOB, Gender.
-**Employment Details:** UAN Number, Previous Company, Current Company, DOJ, Exit Date, Member ID.
+**Employment Details:** UAN Number, Password (EPF member-portal login), Current Company.
 
 #### 9.5.3 Services offered (selectable list, not free text — explicitly requested to avoid manual re-typing)
-PF Withdrawal (Form 19), Advance (Form 31), Pension (Form 10C), Transfer Claim, Joint Declaration, KYC Update, UAN Activation, Pension Certificate, Grievance, Name Correction, DOB Correction, Mobile Update, Employer Correction, Other Services.
+PF Withdrawal (Form 19), Advance (Form 31), Pension (Form 10C), Transfer Claim, Joint Declaration, KYC Update, UAN Activation, Pension Certificate, Grievance, Name Correction, DOB Correction, Mobile Update, Employer Correction, Other Services. A case may select several services; choosing Other Services opens a free-text field describing it.
 
 #### 9.5.4 Case Tracking (workflow, color-coded by status)
 `New Client → Documents Received → Application Submitted → EPFO Processing → Approved → Payment Credited → Fees Collected → Completed`

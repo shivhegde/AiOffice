@@ -102,6 +102,14 @@ service cloud.firestore {
       allow update, delete: if canManageDocuments();
     }
 
+    // Followup entries for EPF cases, one doc per followup, linked via
+    // `caseId` (see lib/features/epf_consultancy/domain/epf_followup.dart).
+    match /epf_followups/{followupId} {
+      allow read: if isKnownUser();
+      allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if canManageDocuments();
+    }
+
     // Shared Department master list (see lib/features/departments) —
     // populated as users add new names via the Work Orders form's picker,
     // not curated up front.

@@ -5,10 +5,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../core/constants/firestore_paths.dart';
 import '../../../core/services/firestore_counter_service.dart';
 import '../../../core/services/storage_upload_service.dart';
+import '../../../core/utils/date_formatting.dart';
 import '../../audit/data/audit_log_repository.dart';
 import '../../audit/domain/audit_entry.dart';
 import '../domain/epf_case.dart';
 import '../domain/epf_enums.dart';
+import '../domain/epf_followup.dart';
 
 /// EPF Case CRUD (REQUIREMENTS.md §9.5). Same pattern as every other
 /// repository in this app: doc numbers via [FirestoreCounterService], and
@@ -30,6 +32,7 @@ class EpfCaseRepository {
   final FirestoreCounterService _counter;
 
   CollectionReference<Map<String, dynamic>> get _collection => _firestore.collection(FirestorePaths.epfCases);
+  CollectionReference<Map<String, dynamic>> get _followups => _firestore.collection(FirestorePaths.epfFollowups);
 
   Stream<List<EpfCase>> watchAll() {
     return _collection
@@ -81,12 +84,10 @@ class EpfCaseRepository {
       dateOfBirth: draft.dateOfBirth,
       gender: draft.gender,
       uanNumber: draft.uanNumber,
-      previousCompany: draft.previousCompany,
+      password: draft.password,
       currentCompany: draft.currentCompany,
-      dateOfJoining: draft.dateOfJoining,
-      exitDate: draft.exitDate,
-      memberId: draft.memberId,
-      service: draft.service,
+      services: draft.services,
+      otherService: draft.otherService,
       stage: draft.stage,
       documentPaths: uploadedPaths,
       documentFileNames: uploadedNames,
@@ -105,7 +106,7 @@ class EpfCaseRepository {
       action: AuditAction.create,
       module: 'epf_consultancy',
       targetId: docRef.id,
-      targetLabel: '$clientId — ${draft.name} (${draft.service.label})',
+      targetLabel: '$clientId — ${draft.name} (${draft.servicesLabel})',
     );
 
     return toSave;
@@ -139,12 +140,10 @@ class EpfCaseRepository {
       dateOfBirth: epfCase.dateOfBirth,
       gender: epfCase.gender,
       uanNumber: epfCase.uanNumber,
-      previousCompany: epfCase.previousCompany,
+      password: epfCase.password,
       currentCompany: epfCase.currentCompany,
-      dateOfJoining: epfCase.dateOfJoining,
-      exitDate: epfCase.exitDate,
-      memberId: epfCase.memberId,
-      service: epfCase.service,
+      services: epfCase.services,
+      otherService: epfCase.otherService,
       stage: epfCase.stage,
       documentPaths: mergedPaths,
       documentFileNames: mergedNames,
@@ -164,13 +163,21 @@ class EpfCaseRepository {
       action: AuditAction.update,
       module: 'epf_consultancy',
       targetId: toSave.id,
-      targetLabel: '${toSave.clientId} — ${toSave.name} (${toSave.service.label})',
+      targetLabel: '${toSave.clientId} — ${toSave.name} (${toSave.servicesLabel})',
     );
   }
 
   Future<void> delete({required EpfCase epfCase, required String actorUid, required String actorName}) async {
     for (final path in epfCase.documentPaths.values) {
       await _storage.delete(path);
+    }
+    final followups = await _followups.where('caseId', isEqualTo: epfCase.id).get();
+    if (followups.docs.isNotEmpty) {
+      final batch = _firestore.batch();
+      for (final f in followups.docs) {
+        batch.delete(f.reference);
+      }
+      await batch.commit();
     }
     await _collection.doc(epfCase.id).delete();
     await _auditLog.log(
@@ -180,6 +187,101 @@ class EpfCaseRepository {
       module: 'epf_consultancy',
       targetId: epfCase.id,
       targetLabel: '${epfCase.clientId} — ${epfCase.name}',
+    );
+  }
+
+  // ---- Followups ----
+
+  /// Every EPF followup; callers group by case and sort client-side.
+  Stream<List<EpfFollowup>> watchFollowups() {
+    return _followups.snapshots().map((snap) => snap.docs.map((d) => EpfFollowup.fromMap(d.id, d.data())).toList());
+  }
+
+  Future<void> addFollowup({
+    required EpfCase epfCase,
+    required DateTime followupDate,
+    required String remark,
+    required FollowupStatus status,
+    required String actorUid,
+    required String actorName,
+  }) async {
+    final ref = _followups.doc();
+    final followup = EpfFollowup(
+      id: ref.id,
+      caseId: epfCase.id,
+      clientId: epfCase.clientId,
+      followupDate: followupDate,
+      remark: remark,
+      status: status,
+      createdBy: actorUid,
+      createdByName: actorName,
+    );
+    await ref.set(followup.toMap());
+    await _auditLog.log(
+      actorUid: actorUid,
+      actorName: actorName,
+      action: AuditAction.create,
+      module: 'epf_consultancy',
+      targetId: epfCase.id,
+      targetLabel: '${epfCase.clientId} followup added (${formatDisplayDate(followupDate)})',
+    );
+  }
+
+  Future<void> updateFollowup({
+    required EpfFollowup followup,
+    required DateTime followupDate,
+    required String remark,
+    required FollowupStatus status,
+    required String actorUid,
+    required String actorName,
+  }) async {
+    await _followups.doc(followup.id).update({
+      'followupDate': Timestamp.fromDate(followupDate),
+      'remark': remark,
+      'status': status.wireValue,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    await _auditLog.log(
+      actorUid: actorUid,
+      actorName: actorName,
+      action: AuditAction.update,
+      module: 'epf_consultancy',
+      targetId: followup.caseId,
+      targetLabel: '${followup.clientId} followup (${formatDisplayDate(followupDate)}) updated',
+    );
+  }
+
+  Future<void> setFollowupStatus({
+    required EpfFollowup followup,
+    required FollowupStatus status,
+    required String actorUid,
+    required String actorName,
+  }) async {
+    await _followups.doc(followup.id).update({'status': status.wireValue, 'updatedAt': FieldValue.serverTimestamp()});
+    await _auditLog.log(
+      actorUid: actorUid,
+      actorName: actorName,
+      action: AuditAction.update,
+      module: 'epf_consultancy',
+      targetId: followup.caseId,
+      targetLabel:
+          '${followup.clientId} followup (${formatDisplayDate(followup.followupDate)}) marked ${status.label}',
+    );
+  }
+
+  Future<void> deleteFollowup({
+    required EpfFollowup followup,
+    required String actorUid,
+    required String actorName,
+  }) async {
+    await _followups.doc(followup.id).delete();
+    await _auditLog.log(
+      actorUid: actorUid,
+      actorName: actorName,
+      action: AuditAction.delete,
+      module: 'epf_consultancy',
+      targetId: followup.caseId,
+      targetLabel: '${followup.clientId} followup (${formatDisplayDate(followup.followupDate)}) deleted',
     );
   }
 }

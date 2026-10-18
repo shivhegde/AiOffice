@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/services/pdf_report_service.dart';
+import '../../../../core/services/report_export_service.dart';
 import '../../../../core/utils/currency_formatting.dart';
 import '../../../../core/utils/date_formatting.dart';
 import '../../../../shared/widgets/app_card.dart';
@@ -111,6 +111,59 @@ class _PeriodToggle extends StatelessWidget {
   };
 }
 
+/// One download button per [ReportFormat] for a report card.
+class _DownloadButtons extends StatefulWidget {
+  const _DownloadButtons({required this.title, required this.subtitle, required this.headers, required this.rows});
+
+  final String title;
+  final String subtitle;
+  final List<String> headers;
+  final List<List<String>> rows;
+
+  @override
+  State<_DownloadButtons> createState() => _DownloadButtonsState();
+}
+
+class _DownloadButtonsState extends State<_DownloadButtons> {
+  bool _saving = false;
+
+  Future<void> _download(ReportFormat format) async {
+    setState(() => _saving = true);
+    try {
+      await ReportExportService.save(
+        format: format,
+        title: widget.title,
+        subtitle: widget.subtitle,
+        headers: widget.headers,
+        rows: widget.rows,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save report: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.rows.isNotEmpty && !_saving;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final format in ReportFormat.values)
+          FilledButton.icon(
+            onPressed: enabled ? () => _download(format) : null,
+            icon: Icon(format == ReportFormat.pdf ? Icons.picture_as_pdf_outlined : Icons.table_chart_outlined, size: 16),
+            label: Text('Download ${format.label}'),
+          ),
+      ],
+    );
+  }
+}
+
 class _IncomeSection extends StatelessWidget {
   const _IncomeSection({required this.cases, required this.period, required this.onPeriodChanged});
 
@@ -157,13 +210,7 @@ class _IncomeSection extends StatelessWidget {
 
     return AppCard(
       title: title,
-      trailing: FilledButton.icon(
-        onPressed: tableRows.isEmpty
-            ? null
-            : () => PdfReportService.printReport(title: title, subtitle: subtitle, headers: _headers, rows: tableRows),
-        icon: const Icon(Icons.download, size: 16),
-        label: const Text('Download PDF'),
-      ),
+      trailing: _DownloadButtons(title: title, subtitle: subtitle, headers: _headers, rows: tableRows),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -229,13 +276,7 @@ class _StatisticsSection extends StatelessWidget {
 
     return AppCard(
       title: title,
-      trailing: FilledButton.icon(
-        onPressed: tableRows.isEmpty
-            ? null
-            : () => PdfReportService.printReport(title: title, subtitle: subtitle, headers: _headers, rows: tableRows),
-        icon: const Icon(Icons.download, size: 16),
-        label: const Text('Download PDF'),
-      ),
+      trailing: _DownloadButtons(title: title, subtitle: subtitle, headers: _headers, rows: tableRows),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

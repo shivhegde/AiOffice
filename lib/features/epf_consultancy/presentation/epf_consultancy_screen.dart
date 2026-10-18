@@ -59,6 +59,7 @@ class _CasesTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final allAsync = ref.watch(epfCaseListProvider);
     final filteredAsync = ref.watch(filteredEpfCaseListProvider);
+    final followups = ref.watch(epfFollowupsByCaseProvider).value ?? const {};
 
     return allAsync.when(
       data: (all) {
@@ -66,7 +67,8 @@ class _CasesTab extends ConsumerWidget {
         final pending = all.where((c) => c.isPending).length;
         final completed = all.where((c) => c.isCompleted).length;
         final todaysIncome = all.where((c) => c.isPaidToday).fold<double>(0, (sum, c) => sum + c.amountPaid);
-        final todaysFollowUps = all.where((c) => c.hasFollowUpToday).length;
+        // Cases with an active followup due today.
+        final todaysFollowUps = all.where((c) => (followups[c.id] ?? const []).any((f) => f.isDueToday)).length;
         final renewalAlerts = all.where((c) => c.needsRenewalAlert).length;
 
         return Column(

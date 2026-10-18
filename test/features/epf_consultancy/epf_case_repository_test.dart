@@ -5,6 +5,7 @@ import 'package:aioffice/features/audit/data/audit_log_repository.dart';
 import 'package:aioffice/features/epf_consultancy/data/epf_case_repository.dart';
 import 'package:aioffice/features/epf_consultancy/domain/epf_case.dart';
 import 'package:aioffice/features/epf_consultancy/domain/epf_enums.dart';
+import 'package:aioffice/features/epf_consultancy/domain/epf_followup.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -26,7 +27,7 @@ EpfCase _draft({
     mobile: '9845066210',
     dateOfBirth: DateTime(1988, 4, 12),
     gender: Gender.male,
-    service: EpfService.pfWithdrawal,
+    services: const [EpfService.pfWithdrawal],
     stage: stage,
     fee: fee,
     amountPaid: amountPaid,
@@ -93,6 +94,94 @@ void main() {
     expect(remaining.docs, isEmpty);
     final auditDocs = await firestore.collection('audit_log').get();
     expect(auditDocs.docs.map((d) => d.data()['action']), containsAll(['create', 'delete']));
+  });
+
+  group('followups', () {
+    test('add, update, close and delete a followup', () async {
+      final saved = await repository.create(draft: _draft(), actorUid: 'actor-1', actorName: 'Actor One');
+      await repository.addFollowup(
+        epfCase: saved,
+        followupDate: DateTime(2026, 11, 2),
+        remark: 'Call client for passbook',
+        status: FollowupStatus.active,
+        actorUid: 'actor-1',
+        actorName: 'Actor One',
+      );
+
+      var followups = await repository.watchFollowups().first;
+      expect(followups, hasLength(1));
+      expect(followups.single.caseId, saved.id);
+      expect(followups.single.clientId, saved.clientId);
+
+      await repository.updateFollowup(
+        followup: followups.single,
+        followupDate: DateTime(2026, 11, 5),
+        remark: 'Passbook received',
+        status: FollowupStatus.active,
+        actorUid: 'actor-1',
+        actorName: 'Actor One',
+      );
+      await repository.setFollowupStatus(
+        followup: followups.single,
+        status: FollowupStatus.closed,
+        actorUid: 'actor-1',
+        actorName: 'Actor One',
+      );
+      followups = await repository.watchFollowups().first;
+      expect(followups.single.remark, 'Passbook received');
+      expect(followups.single.followupDate, DateTime(2026, 11, 5));
+      expect(followups.single.status, FollowupStatus.closed);
+
+      await repository.deleteFollowup(followup: followups.single, actorUid: 'actor-1', actorName: 'Actor One');
+      expect(await repository.watchFollowups().first, isEmpty);
+    });
+
+    test('deleting a case deletes its followups', () async {
+      final saved = await repository.create(draft: _draft(), actorUid: 'actor-1', actorName: 'Actor One');
+      final other = await repository.create(draft: _draft(), actorUid: 'actor-1', actorName: 'Actor One');
+      for (final c in [saved, other]) {
+        await repository.addFollowup(
+          epfCase: c,
+          followupDate: DateTime(2026, 11, 2),
+          remark: 'r',
+          status: FollowupStatus.active,
+          actorUid: 'actor-1',
+          actorName: 'Actor One',
+        );
+      }
+      await repository.delete(epfCase: saved, actorUid: 'actor-1', actorName: 'Actor One');
+      final remaining = await repository.watchFollowups().first;
+      expect(remaining.map((f) => f.caseId), [other.id]);
+    });
+
+    test('current followup is the earliest active, else the latest closed', () {
+      EpfFollowup f(String id, DateTime date, FollowupStatus status) => EpfFollowup(
+        id: id,
+        caseId: 'c',
+        clientId: 'CL',
+        followupDate: date,
+        remark: id,
+        status: status,
+        createdBy: 'u',
+        createdByName: 'U',
+      );
+      expect(currentEpfFollowup(const []), isNull);
+      expect(
+        currentEpfFollowup([
+          f('late-active', DateTime(2026, 12, 1), FollowupStatus.active),
+          f('early-active', DateTime(2026, 11, 1), FollowupStatus.active),
+          f('closed', DateTime(2026, 10, 1), FollowupStatus.closed),
+        ])!.id,
+        'early-active',
+      );
+      expect(
+        currentEpfFollowup([
+          f('old-closed', DateTime(2026, 9, 1), FollowupStatus.closed),
+          f('new-closed', DateTime(2026, 10, 1), FollowupStatus.closed),
+        ])!.id,
+        'new-closed',
+      );
+    });
   });
 
   group('computed flags', () {

@@ -6,6 +6,7 @@ import '../../inward_outward/application/io_providers.dart' show storageUploadSe
 import '../data/epf_case_repository.dart';
 import '../domain/epf_case.dart';
 import '../domain/epf_enums.dart';
+import '../domain/epf_followup.dart';
 
 final epfCaseRepositoryProvider = Provider<EpfCaseRepository>((ref) {
   return EpfCaseRepository(
@@ -17,6 +18,21 @@ final epfCaseRepositoryProvider = Provider<EpfCaseRepository>((ref) {
 
 final epfCaseListProvider = StreamProvider<List<EpfCase>>((ref) {
   return ref.watch(epfCaseRepositoryProvider).watchAll();
+});
+
+/// EPF followups grouped by case id, each list newest followup date first
+/// (the order the history dialog shows).
+final epfFollowupsByCaseProvider = StreamProvider<Map<String, List<EpfFollowup>>>((ref) {
+  return ref.watch(epfCaseRepositoryProvider).watchFollowups().map((followups) {
+    final grouped = <String, List<EpfFollowup>>{};
+    for (final f in followups) {
+      grouped.putIfAbsent(f.caseId, () => []).add(f);
+    }
+    for (final list in grouped.values) {
+      list.sort((a, b) => b.followupDate.compareTo(a.followupDate));
+    }
+    return grouped;
+  });
 });
 
 class EpfCaseFilterState {

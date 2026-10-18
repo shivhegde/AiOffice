@@ -14,7 +14,8 @@ enum Gender {
 }
 
 /// §9.5.3 Services offered — a fixed selectable list (explicitly not free
-/// text, to avoid manual re-typing). One case tracks exactly one service.
+/// text, to avoid manual re-typing). A case can cover several services;
+/// [EpfService.other] pairs with free text on the case (`otherService`).
 enum EpfService {
   pfWithdrawal('pf_withdrawal', 'PF Withdrawal (Form 19)'),
   advance('advance', 'Advance (Form 31)'),
@@ -75,7 +76,10 @@ enum EpfDocumentSlot {
   uanScreenshot('uan_screenshot', 'UAN Screenshot'),
   cheque('cheque', 'Cheque'),
   claimPdf('claim_pdf', 'Claim PDF'),
-  paymentScreenshot('payment_screenshot', 'Payment Screenshot');
+  paymentScreenshot('payment_screenshot', 'Payment Screenshot'),
+  // General-purpose slots for anything else the user wants kept on the case.
+  miscDoc1('misc_doc_1', 'Misc Doc 1'),
+  miscDoc2('misc_doc_2', 'Misc Doc 2');
 
   const EpfDocumentSlot(this.wireValue, this.label);
 

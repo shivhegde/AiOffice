@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// §9.5.6 Follow-up — one entry in a case's follow-up log, e.g.
+/// Legacy (read-only): §9.5.6 Follow-up — one entry in a case's old follow-up log, e.g.
 /// "Rahul — PF Withdrawal — Applied — 25 Jun 2026" (client/service/status
 /// come from the parent [EpfCase], so an entry only needs its own date and
 /// note). Embedded as a list on the case document rather than a
