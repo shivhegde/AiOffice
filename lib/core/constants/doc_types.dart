@@ -14,9 +14,8 @@ const List<String> kInwardDocTypes = [
 const List<String> kOutwardDocTypes = [
   'Work Order',
   'Letter',
-  'Request for EMD Clearance',
-  'Request for References',
-  'Request for Recommendations',
+  'Invoice',
+  'Cheque',
   'Other',
 ];
 

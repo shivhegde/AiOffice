@@ -82,6 +82,7 @@ class OutwardDataTable extends ConsumerWidget {
       columns: const [
         DataColumn(label: Text('S.No.')),
         DataColumn(label: Text('Outward No.')),
+        DataColumn(label: Text('Date')),
         DataColumn(label: Text('Sent To')),
         DataColumn(label: Text('Subject')),
         DataColumn(label: Text('Dispatch Mode')),
@@ -99,6 +100,7 @@ class OutwardDataTable extends ConsumerWidget {
             cells: [
               DataCell(Text('${index + 1}')),
               DataCell(Text(doc.docNumber)),
+              DataCell(Text(formatDisplayDate(doc.date))),
               DataCell(Text(doc.sentTo ?? '—')),
               DataCell(SizedBox(width: 220, child: Text(doc.subject, overflow: TextOverflow.ellipsis))),
               DataCell(StatusChip(label: doc.dispatchMode?.label ?? '—', variant: StatusChipVariant.neutral)),
