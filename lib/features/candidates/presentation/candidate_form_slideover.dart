@@ -51,20 +51,25 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
   final _stateController = TextEditingController();
   final _pincodeController = TextEditingController();
   final _heightController = TextEditingController();
+  final _genderOtherController = TextEditingController();
+  final _maritalStatusOtherController = TextEditingController();
+  final _educationOtherController = TextEditingController();
+  final _languagesOtherController = TextEditingController();
+  final _categoryOtherController = TextEditingController();
 
   late DateTime _dateOfBirth;
   Gender _gender = Gender.male;
   MaritalStatus _maritalStatus = MaritalStatus.single;
-  CandidateCategory _category = CandidateCategory.security;
   ExperienceLevel _experience = ExperienceLevel.fresher;
   bool _exServiceman = false;
   final Set<EducationLevel> _education = {};
   final Set<Language> _languages = {};
+  final Set<CandidateCategory> _categories = {};
 
   ({Uint8List bytes, String name, String contentType})? _pendingResume;
   bool _submitting = false;
   bool get _isEditing => widget.existing != null;
-  bool get _isSecurityCategory => _category == CandidateCategory.security;
+  bool get _isSecurityCategory => _categories.contains(CandidateCategory.security);
 
   @override
   void initState() {
@@ -82,16 +87,21 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
     _stateController.text = e?.state ?? '';
     _pincodeController.text = e?.pincode ?? '';
     _heightController.text = e?.height ?? '';
+    _genderOtherController.text = e?.genderOther ?? '';
+    _maritalStatusOtherController.text = e?.maritalStatusOther ?? '';
+    _educationOtherController.text = e?.educationOther ?? '';
+    _languagesOtherController.text = e?.languagesOther ?? '';
+    _categoryOtherController.text = e?.categoryOther ?? '';
 
     _dateOfBirth = e?.dateOfBirth ?? DateTime.now();
     _gender = e?.gender ?? Gender.male;
     _maritalStatus = e?.maritalStatus ?? MaritalStatus.single;
-    _category = e?.category ?? CandidateCategory.security;
     _experience = e?.experience ?? ExperienceLevel.fresher;
     _exServiceman = e?.exServiceman ?? false;
     if (e != null) {
       _education.addAll(e.education);
       _languages.addAll(e.languagesKnown);
+      _categories.addAll(e.categories);
     }
   }
 
@@ -109,6 +119,11 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
     _stateController.dispose();
     _pincodeController.dispose();
     _heightController.dispose();
+    _genderOtherController.dispose();
+    _maritalStatusOtherController.dispose();
+    _educationOtherController.dispose();
+    _languagesOtherController.dispose();
+    _categoryOtherController.dispose();
     super.dispose();
   }
 
@@ -159,6 +174,11 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
       return;
     }
 
+    if (_categories.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Select at least one category / post.')));
+      return;
+    }
+
     final appUser = ref.read(currentAppUserProvider).value;
     final actorUid = appUser?.uid ?? '';
     final actorName = appUser?.displayName.isNotEmpty == true ? appUser!.displayName : (appUser?.email ?? 'Unknown');
@@ -177,6 +197,8 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
         dateOfBirth: _dateOfBirth,
         gender: _gender,
         maritalStatus: _maritalStatus,
+        genderOther: _gender == Gender.other ? _genderOtherController.text.trim() : '',
+        maritalStatusOther: _maritalStatus == MaritalStatus.other ? _maritalStatusOtherController.text.trim() : '',
         village: _villageController.text.trim(),
         cityTown: _cityTownController.text.trim(),
         taluk: _talukController.text.trim(),
@@ -184,9 +206,12 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
         state: _stateController.text.trim(),
         pincode: _pincodeController.text.trim(),
         education: _education,
-        category: _category,
+        educationOther: _education.contains(EducationLevel.other) ? _educationOtherController.text.trim() : '',
+        categories: _categories,
+        categoryOther: _categories.contains(CandidateCategory.other) ? _categoryOtherController.text.trim() : '',
         experience: _experience,
         languagesKnown: _languages,
+        languagesOther: _languages.contains(Language.others) ? _languagesOtherController.text.trim() : '',
         height: _isSecurityCategory ? _heightController.text.trim() : '',
         exServiceman: _isSecurityCategory ? _exServiceman : false,
         resumeStoragePath: widget.existing?.resumeStoragePath,
@@ -227,6 +252,13 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
           Text(title, style: Theme.of(context).textTheme.titleMedium),
         ],
       ),
+    );
+  }
+
+  Widget _otherField(String label, TextEditingController controller) {
+    return FormRowLabel(
+      label: label,
+      child: TextField(controller: controller),
     );
   }
 
@@ -321,6 +353,7 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
             ),
           ],
         ),
+        if (_gender == Gender.other) _otherField('Specify Gender', _genderOtherController),
         FormRowLabel(
           label: 'Marital Status',
           child: DropdownButtonFormField<MaritalStatus>(
@@ -330,6 +363,7 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
             onChanged: (v) => setState(() => _maritalStatus = v ?? MaritalStatus.single),
           ),
         ),
+        if (_maritalStatus == MaritalStatus.other) _otherField('Specify Marital Status', _maritalStatusOtherController),
 
         _sectionHeader('Address Information'),
         Row(
@@ -394,17 +428,18 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
           selected: _education,
           labelOf: (e) => e.label,
         ),
+        if (_education.contains(EducationLevel.other))
+          _otherField('Specify Other Qualification', _educationOtherController),
 
         _sectionHeader('Category & Experience'),
-        FormRowLabel(
+        _multiSelectChips(
           label: 'Category / Post Applied For',
-          child: DropdownButtonFormField<CandidateCategory>(
-            initialValue: _category,
-            isExpanded: true,
-            items: [for (final c in CandidateCategory.values) DropdownMenuItem(value: c, child: Text(c.label))],
-            onChanged: (v) => setState(() => _category = v ?? CandidateCategory.security),
-          ),
+          options: CandidateCategory.values,
+          selected: _categories,
+          labelOf: (c) => c.label,
         ),
+        if (_categories.contains(CandidateCategory.other))
+          _otherField('Specify Other Category / Post', _categoryOtherController),
         FormRowLabel(
           label: 'Experience',
           child: DropdownButtonFormField<ExperienceLevel>(
@@ -420,6 +455,7 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
           selected: _languages,
           labelOf: (l) => l.label,
         ),
+        if (_languages.contains(Language.others)) _otherField('Specify Other Languages', _languagesOtherController),
 
         if (_isSecurityCategory) ...[
           _sectionHeader('Physical Information (Security roles)'),

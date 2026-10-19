@@ -18,12 +18,13 @@ class PdfReportService {
     required String subtitle,
     required List<String> headers,
     required List<List<String>> rows,
+    PdfPageFormat? pageFormat,
   }) async {
     final doc = pw.Document();
 
     doc.addPage(
       pw.MultiPage(
-        pageFormat: PdfPageFormat.a4.landscape,
+        pageFormat: pageFormat ?? PdfPageFormat.a4.landscape,
         build: (context) => [
           pw.Text(title, style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 4),

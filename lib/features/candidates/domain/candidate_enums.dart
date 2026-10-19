@@ -52,7 +52,7 @@ enum EducationLevel {
   }
 }
 
-/// §9.2 Category / Post applied for — single select.
+/// §9.2 Category / Post applied for — multi-select.
 enum CandidateCategory {
   security('security', 'Security'),
   computerOperator('computer_operator', 'Computer Operator'),
@@ -65,15 +65,19 @@ enum CandidateCategory {
   housekeeping('housekeeping', 'Housekeeping'),
   gardener('gardener', 'Gardener'),
   helper('helper', 'Helper'),
-  labour('labour', 'Labour');
+  labour('labour', 'Labour'),
+  other('other', 'Other');
 
   const CandidateCategory(this.wireValue, this.label);
 
   final String wireValue;
   final String label;
 
-  static CandidateCategory fromWireValue(String? value) {
-    return CandidateCategory.values.firstWhere((c) => c.wireValue == value, orElse: () => CandidateCategory.security);
+  static CandidateCategory? fromWireValue(String? value) {
+    for (final c in CandidateCategory.values) {
+      if (c.wireValue == value) return c;
+    }
+    return null;
   }
 }
 

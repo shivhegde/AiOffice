@@ -19,8 +19,8 @@ class CandidatesScreen extends ConsumerWidget {
 
     return allAsync.when(
       data: (all) {
-        final security = all.where((c) => c.category == CandidateCategory.security).length;
-        final housekeeping = all.where((c) => c.category == CandidateCategory.housekeeping).length;
+        final security = all.where((c) => c.categories.contains(CandidateCategory.security)).length;
+        final housekeeping = all.where((c) => c.categories.contains(CandidateCategory.housekeeping)).length;
         final addedThisMonth = all.where((c) => c.isAddedThisMonth).length;
 
         return Column(

@@ -35,14 +35,14 @@ class CandidateFilterState {
   bool matches(Candidate c) {
     if (search.trim().isNotEmpty) {
       final needle = search.trim().toLowerCase();
-      final qualifications = c.education.map((e) => e.label).join(' ');
+      final qualifications = c.educationDisplay;
       final haystack =
           '${c.fullName} ${c.candidateId} ${c.district} ${c.taluk} $qualifications '
-                  '${c.mobileNumber} ${c.category.label} ${c.experience.label}'
+                  '${c.mobileNumber} ${c.categoryDisplay} ${c.experience.label}'
               .toLowerCase();
       if (!haystack.contains(needle)) return false;
     }
-    if (category != null && c.category != category) return false;
+    if (category != null && !c.categories.contains(category)) return false;
     return true;
   }
 }

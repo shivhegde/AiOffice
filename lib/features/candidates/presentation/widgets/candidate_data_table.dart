@@ -26,6 +26,7 @@ class CandidateDataTable extends ConsumerWidget {
         DataColumn(label: Text('Mobile')),
         DataColumn(label: Text('Qualification')),
         DataColumn(label: Text('Category')),
+        DataColumn(label: Text('Referred By')),
         DataColumn(label: Text('District')),
         DataColumn(label: Text('Taluk')),
         DataColumn(label: Text('Experience')),
@@ -39,10 +40,13 @@ class CandidateDataTable extends ConsumerWidget {
               DataCell(Text(c.candidateId)),
               DataCell(Text(c.fullName)),
               DataCell(Text(c.mobileNumber)),
+              DataCell(Text(c.education.isEmpty ? '—' : c.educationDisplay)),
               DataCell(
-                Text(c.education.isEmpty ? '—' : c.education.map((e) => e.label).join(', ')),
+                c.categories.isEmpty
+                    ? const Text('—')
+                    : StatusChip(label: c.categoryDisplay, variant: StatusChipVariant.accent),
               ),
-              DataCell(StatusChip(label: c.category.label, variant: StatusChipVariant.accent)),
+              DataCell(Text(c.referredBy.isEmpty ? '—' : c.referredBy)),
               DataCell(Text(c.district.isEmpty ? '—' : c.district)),
               DataCell(Text(c.taluk.isEmpty ? '—' : c.taluk)),
               DataCell(

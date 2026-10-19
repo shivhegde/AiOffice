@@ -1,3 +1,5 @@
+import 'package:pdf/pdf.dart';
+
 import 'excel_report_service.dart';
 import 'pdf_report_service.dart';
 
@@ -22,9 +24,16 @@ class ReportExportService {
     required String subtitle,
     required List<String> headers,
     required List<List<String>> rows,
+    PdfPageFormat? pdfPageFormat,
   }) {
     return switch (format) {
-      ReportFormat.pdf => PdfReportService.printReport(title: title, subtitle: subtitle, headers: headers, rows: rows),
+      ReportFormat.pdf => PdfReportService.printReport(
+        title: title,
+        subtitle: subtitle,
+        headers: headers,
+        rows: rows,
+        pageFormat: pdfPageFormat,
+      ),
       ReportFormat.excel => ExcelReportService.saveReport(
         title: title,
         subtitle: subtitle,
