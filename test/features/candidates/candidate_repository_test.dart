@@ -24,7 +24,7 @@ Candidate _draft({DateTime? dateOfBirth, CandidateCategory category = CandidateC
     district: 'Mysuru',
     taluk: 'Nanjangud',
     education: const {EducationLevel.puc, EducationLevel.iti},
-    category: category,
+    categories: {category},
     experience: ExperienceLevel.fresher,
     languagesKnown: const {Language.kannada, Language.english},
     height: '5\'8"',

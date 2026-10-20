@@ -21,7 +21,9 @@ class InventoryDataTable extends ConsumerWidget {
         DataColumn(label: Text('S.No.')),
         DataColumn(label: Text('Item')),
         DataColumn(label: Text('Size')),
-        DataColumn(label: Text('Qty')),
+        DataColumn(label: Text('Opening')),
+        DataColumn(label: Text('Reorder ≤')),
+        DataColumn(label: Text('Target')),
         DataColumn(label: Text('')),
       ],
       rows: [
@@ -31,7 +33,9 @@ class InventoryDataTable extends ConsumerWidget {
               DataCell(Text('${index + 1}')),
               DataCell(Text(i.item)),
               DataCell(Text(i.size.isEmpty ? '—' : i.size)),
-              DataCell(Text('${i.qty}')),
+              DataCell(Text('${i.openingStock}')),
+              DataCell(Text('${i.reorderLevel}')),
+              DataCell(Text('${i.targetStock}')),
               DataCell(_RowActions(item: i)),
             ],
           ),
@@ -65,7 +69,7 @@ class _RowActions extends ConsumerWidget {
                 context: context,
                 builder: (context) => AlertDialog(
                   title: const Text('Delete inventory item?'),
-                  content: Text('This removes ${item.item} (${item.size}).'),
+                  content: Text('This removes ${item.displayName} and all its stock movements.'),
                   actions: [
                     TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
                     FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),

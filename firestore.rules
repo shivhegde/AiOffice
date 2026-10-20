@@ -90,6 +90,12 @@ service cloud.firestore {
       allow update, delete: if canManageDocuments();
     }
 
+    match /inventory_movements/{docId} {
+      allow read: if isKnownUser();
+      allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if canManageDocuments();
+    }
+
     match /vehicle_policies/{docId} {
       allow read: if isKnownUser();
       allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;

@@ -26,7 +26,7 @@ class InventoryToolbar extends ConsumerWidget {
           child: FilledButton.icon(
             onPressed: () => InventoryFormSlideover.show(context),
             icon: const Icon(Icons.add, size: 16),
-            label: const Text('New Item'),
+            label: const Text('Add Uniform Item'),
           ),
         ),
       ],

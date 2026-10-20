@@ -6,15 +6,16 @@ import '../../users/application/user_providers.dart';
 import '../application/inventory_providers.dart';
 import '../domain/inventory_item.dart';
 
-/// Create/edit form for an Inventory item — REQUIREMENTS.md §9.3's
-/// minimal Item / Size / Qty fields.
+/// Create/edit form for a uniform item — name, size, opening stock,
+/// reorder level and target stock (docs/inventory_redesign.html "Add
+/// uniform item").
 class InventoryFormSlideover {
   InventoryFormSlideover._();
 
   static Future<void> show(BuildContext context, {InventoryItem? existing}) {
     return SlideoverPanel.show(
       context,
-      title: existing != null ? 'Inventory — ${existing.item}' : 'New Inventory Item',
+      title: existing != null ? 'Inventory — ${existing.displayName}' : 'New Uniform Item',
       body: _InventoryForm(existing: existing),
       actions: const [],
       width: 420,
@@ -32,11 +33,11 @@ class _InventoryForm extends ConsumerStatefulWidget {
 }
 
 class _InventoryFormState extends ConsumerState<_InventoryForm> {
-  static const _sizeOptions = ['SMALL', 'MEDIUM', 'LARGE', 'EXTRA LARGE'];
-
   final _itemController = TextEditingController();
-  final _qtyController = TextEditingController();
-  String? _size;
+  final _sizeController = TextEditingController();
+  final _openingController = TextEditingController();
+  final _reorderController = TextEditingController();
+  final _targetController = TextEditingController();
 
   bool _submitting = false;
   bool get _isEditing => widget.existing != null;
@@ -46,21 +47,46 @@ class _InventoryFormState extends ConsumerState<_InventoryForm> {
     super.initState();
     final e = widget.existing;
     _itemController.text = e?.item ?? '';
-    _qtyController.text = e != null ? '${e.qty}' : '';
-    _size = (e?.size.isNotEmpty ?? false) ? e!.size : null;
+    _sizeController.text = e?.size ?? '';
+    _openingController.text = '${e?.openingStock ?? 0}';
+    _reorderController.text = '${e?.reorderLevel ?? 5}';
+    _targetController.text = '${e?.targetStock ?? 20}';
   }
 
   @override
   void dispose() {
     _itemController.dispose();
-    _qtyController.dispose();
+    _sizeController.dispose();
+    _openingController.dispose();
+    _reorderController.dispose();
+    _targetController.dispose();
     super.dispose();
   }
+
+  int _intOf(TextEditingController c) => int.tryParse(c.text.trim()) ?? 0;
 
   Future<void> _submit() async {
     if (_itemController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Item name is required.')));
       return;
+    }
+    if ([_openingController, _reorderController, _targetController].any((c) => _intOf(c) < 0)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Stock values cannot be negative.')));
+      return;
+    }
+
+    // Lowering opening stock below what has already been issued out of the
+    // store would leave store stock negative.
+    final existing = widget.existing;
+    if (existing != null) {
+      final inStore = ref.read(inventoryStockProvider).value?[existing.id]?.inStore;
+      if (inStore != null && inStore - existing.openingStock + _intOf(_openingController) < 0) {
+        final minimum = existing.openingStock - inStore;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Opening stock must be at least $minimum — store stock would go negative.')),
+        );
+        return;
+      }
     }
 
     final appUser = ref.read(currentAppUserProvider).value;
@@ -72,8 +98,10 @@ class _InventoryFormState extends ConsumerState<_InventoryForm> {
       final draft = InventoryItem(
         id: widget.existing?.id ?? '',
         item: _itemController.text.trim(),
-        size: _size ?? '',
-        qty: int.tryParse(_qtyController.text.trim()) ?? 0,
+        size: _sizeController.text.trim(),
+        openingStock: _intOf(_openingController),
+        reorderLevel: _intOf(_reorderController),
+        targetStock: _intOf(_targetController),
         createdBy: widget.existing?.createdBy ?? actorUid,
         createdByName: widget.existing?.createdByName ?? actorName,
         createdAt: widget.existing?.createdAt,
@@ -105,25 +133,40 @@ class _InventoryFormState extends ConsumerState<_InventoryForm> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         FormRowLabel(
-          label: 'Item',
-          child: TextField(controller: _itemController),
-        ),
-        FormRowLabel(
-          label: 'Size',
-          child: DropdownButtonFormField<String>(
-            initialValue: _size,
-            isExpanded: true,
-            hint: const Text('Select size'),
-            items: [
-              for (final s in {..._sizeOptions, ?_size})
-                DropdownMenuItem(value: s, child: Text(s)),
-            ],
-            onChanged: (v) => setState(() => _size = v),
+          label: 'Item Name',
+          child: TextField(
+            controller: _itemController,
+            decoration: const InputDecoration(hintText: 'Shirt, Trouser, Cap, Shoes…'),
           ),
         ),
         FormRowLabel(
-          label: 'Qty',
-          child: TextField(controller: _qtyController, keyboardType: TextInputType.number),
+          label: 'Size',
+          child: TextField(
+            controller: _sizeController,
+            decoration: const InputDecoration(hintText: 'M / 40 / 9'),
+          ),
+        ),
+        FormRowLabel(
+          label: 'Opening Stock',
+          child: TextField(controller: _openingController, keyboardType: TextInputType.number),
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: FormRowLabel(
+                label: 'Reorder when ≤',
+                child: TextField(controller: _reorderController, keyboardType: TextInputType.number),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FormRowLabel(
+                label: 'Target Stock',
+                child: TextField(controller: _targetController, keyboardType: TextInputType.number),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 14),
         Row(
