@@ -32,6 +32,7 @@ class TenderDataTable extends ConsumerWidget {
         DataColumn(label: Text('Type')),
         DataColumn(label: Text('Publish Date')),
         DataColumn(label: Text('Submitted')),
+        DataColumn(label: Text('Tender Status')),
         DataColumn(label: Text('Refund Status')),
         DataColumn(label: Text('')),
       ],
@@ -48,6 +49,12 @@ class TenderDataTable extends ConsumerWidget {
               DataCell(Text(tender.emdType.label)),
               DataCell(Text(formatDisplayDate(tender.publishDate))),
               DataCell(Text(formatDisplayDate(tender.submissionDate))),
+              DataCell(
+                StatusChip(
+                  label: tender.status.label,
+                  variant: tender.status == TenderStatus.active ? StatusChipVariant.good : StatusChipVariant.neutral,
+                ),
+              ),
               DataCell(_RefundStatusChip(tender: tender)),
               DataCell(_RowActions(tender: tender)),
             ],

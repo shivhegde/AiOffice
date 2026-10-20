@@ -46,6 +46,7 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
   late DateTime _submissionDate;
   DateTime? _emdValidUntil;
   TenderCategory _category = TenderCategory.work;
+  TenderStatus _status = TenderStatus.active;
   EmdType _emdType = EmdType.dd;
   RefundStatus _refundStatus = RefundStatus.pending;
 
@@ -69,6 +70,7 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
     _submissionDate = existing?.submissionDate ?? DateTime.now();
     _emdValidUntil = existing?.emdValidUntil;
     _category = existing?.category ?? TenderCategory.work;
+    _status = existing?.status ?? TenderStatus.active;
     _emdType = existing?.emdType ?? EmdType.dd;
     _refundStatus = existing?.refundStatus ?? RefundStatus.pending;
   }
@@ -114,6 +116,7 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
         tenderName: _tenderNameController.text.trim(),
         departmentName: _departmentController.text.trim(),
         category: _category,
+        status: _status,
         publishDate: _publishDate,
         submissionDate: _submissionDate,
         emdAmount: double.tryParse(_emdAmountController.text.trim()) ?? 0,
@@ -179,6 +182,15 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
             ),
           ),
         FormRowLabel(label: 'Tender Name', child: TextField(controller: _tenderNameController)),
+        FormRowLabel(
+          label: 'Tender Status',
+          child: DropdownButtonFormField<TenderStatus>(
+            initialValue: _status,
+            isExpanded: true,
+            items: [for (final s in TenderStatus.values) DropdownMenuItem(value: s, child: Text(s.label))],
+            onChanged: (v) => setState(() => _status = v ?? TenderStatus.active),
+          ),
+        ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

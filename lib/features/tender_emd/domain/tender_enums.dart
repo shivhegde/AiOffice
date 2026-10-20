@@ -44,3 +44,17 @@ enum RefundStatus {
     return RefundStatus.values.firstWhere((s) => s.wireValue == value, orElse: () => RefundStatus.pending);
   }
 }
+
+enum TenderStatus {
+  active('active', 'Active'),
+  closed('closed', 'Closed');
+
+  const TenderStatus(this.wireValue, this.label);
+
+  final String wireValue;
+  final String label;
+
+  static TenderStatus fromWireValue(String? value) {
+    return TenderStatus.values.firstWhere((s) => s.wireValue == value, orElse: () => TenderStatus.active);
+  }
+}

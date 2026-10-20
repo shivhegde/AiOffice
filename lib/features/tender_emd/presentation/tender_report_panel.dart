@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../core/services/pdf_report_service.dart';
+import '../../../core/services/report_export_service.dart';
 import '../../../core/utils/currency_formatting.dart';
 import '../../../core/utils/date_formatting.dart';
 import '../domain/tender.dart';
@@ -19,7 +19,7 @@ class TenderReportPanel {
       context: context,
       builder: (context) => Dialog(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 780, maxHeight: 600),
+          constraints: const BoxConstraints(maxWidth: 960, maxHeight: 600),
           child: _ReportBody(tenders: tenders),
         ),
       ),
@@ -38,6 +38,27 @@ class _ReportBody extends StatefulWidget {
 
 class _ReportBodyState extends State<_ReportBody> {
   _TenderReportType _type = _TenderReportType.all;
+  ReportFormat _format = ReportFormat.pdf;
+  bool _saving = false;
+
+  Future<void> _download(String subtitle) async {
+    setState(() => _saving = true);
+    try {
+      await ReportExportService.save(
+        format: _format,
+        title: _title,
+        subtitle: subtitle,
+        headers: _headers,
+        rows: _tableRows,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save report: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
 
   List<Tender> get _rows {
     switch (_type) {
@@ -129,11 +150,17 @@ class _ReportBodyState extends State<_ReportBody> {
               const SizedBox(width: 8),
               TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Close')),
               const SizedBox(width: 4),
+              SegmentedButton<ReportFormat>(
+                segments: [for (final f in ReportFormat.values) ButtonSegment(value: f, label: Text(f.label))],
+                selected: {_format},
+                showSelectedIcon: false,
+                onSelectionChanged: (s) => setState(() => _format = s.first),
+              ),
+              const SizedBox(width: 8),
               FilledButton.icon(
-                onPressed: () =>
-                    PdfReportService.printReport(title: _title, subtitle: subtitle, headers: _headers, rows: _tableRows),
+                onPressed: _saving ? null : () => _download(subtitle),
                 icon: const Icon(Icons.download, size: 16),
-                label: const Text('Download PDF'),
+                label: Text('Download ${_format.label}'),
               ),
             ],
           ),

@@ -20,14 +20,17 @@ class TenderEmdScreen extends ConsumerWidget {
 
     return allAsync.when(
       data: (all) {
-        final deposited = all.fold<double>(0, (sum, t) => sum + t.emdAmount);
-        final pending = all
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final active = all.where((t) => t.status == TenderStatus.active).toList();
+        final activeRefundPending = active.where((t) => t.refundStatus == RefundStatus.pending).toList();
+        final emdBlocked = activeRefundPending.fold<double>(0, (sum, t) => sum + t.emdAmount);
+        final refundsToChase = activeRefundPending
+            .where((t) => t.emdValidUntil != null && t.emdValidUntil!.isBefore(today))
+            .length;
+        final securityDeposit = all
             .where((t) => t.refundStatus == RefundStatus.pending)
             .fold<double>(0, (sum, t) => sum + t.emdAmount);
-        final refunded = all
-            .where((t) => t.refundStatus == RefundStatus.refunded)
-            .fold<double>(0, (sum, t) => sum + t.emdAmount);
-        final expiringSoon = all.where((t) => t.isEmdValidityExpiringSoon).length;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -43,10 +46,10 @@ class TenderEmdScreen extends ConsumerWidget {
                   crossAxisSpacing: 14,
                   childAspectRatio: 3.3,
                   children: [
-                    StatTile(label: 'Total EMD Deposited', value: formatCurrencyCompact(deposited)),
-                    StatTile(label: 'Total EMD Pending', value: formatCurrencyCompact(pending)),
-                    StatTile(label: 'Total EMD Refunded', value: formatCurrencyCompact(refunded)),
-                    StatTile(label: 'Expiring in 15 Days', value: '$expiringSoon'),
+                    StatTile(label: 'Tenders', value: '${active.length}'),
+                    StatTile(label: 'EMD Blocked (Rs)', value: formatCurrencyCompact(emdBlocked)),
+                    StatTile(label: 'Refunds to Chase', value: '$refundsToChase'),
+                    StatTile(label: 'Tot Security Deposit (Rs)', value: formatCurrencyCompact(securityDeposit)),
                   ],
                 );
               },

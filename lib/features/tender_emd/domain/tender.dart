@@ -13,6 +13,7 @@ class Tender {
     required this.tenderName,
     required this.departmentName,
     required this.category,
+    this.status = TenderStatus.active,
     required this.publishDate,
     required this.submissionDate,
     required this.emdAmount,
@@ -38,6 +39,7 @@ class Tender {
   final String tenderName;
   final String departmentName;
   final TenderCategory category;
+  final TenderStatus status;
   final DateTime publishDate;
   final DateTime submissionDate;
 
@@ -87,6 +89,7 @@ class Tender {
       tenderName: data['tenderName'] as String? ?? '',
       departmentName: data['departmentName'] as String? ?? '',
       category: TenderCategory.fromWireValue(data['category'] as String?),
+      status: TenderStatus.fromWireValue(data['status'] as String?),
       publishDate: (data['publishDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       submissionDate: (data['submissionDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       emdAmount: (data['emdAmount'] as num?)?.toDouble() ?? 0,
@@ -120,6 +123,7 @@ class Tender {
       'tenderName': tenderName,
       'departmentName': departmentName,
       'category': category.wireValue,
+      'status': status.wireValue,
       'publishDate': Timestamp.fromDate(publishDate),
       'submissionDate': Timestamp.fromDate(submissionDate),
       'emdAmount': emdAmount,

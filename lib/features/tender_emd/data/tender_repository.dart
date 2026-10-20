@@ -44,6 +44,7 @@ class TenderRepository {
       tenderName: draft.tenderName,
       departmentName: draft.departmentName,
       category: draft.category,
+      status: draft.status,
       publishDate: draft.publishDate,
       submissionDate: draft.submissionDate,
       emdAmount: draft.emdAmount,
