@@ -41,6 +41,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _submitting = true);
     try {
       await ref.read(authRepositoryProvider).signIn(email: email, password: password);
+      ref.read(pendingLoginAuditProvider.notifier).state = true;
     } catch (e) {
       if (mounted) _showSnack(AuthRepository.friendlyErrorMessage(e));
     } finally {

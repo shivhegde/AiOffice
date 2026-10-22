@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../features/audit/domain/audit_entry.dart';
+import '../features/audit/presentation/audit_log_screen.dart';
 import '../features/auth/application/auth_providers.dart';
 import '../features/users/application/user_providers.dart';
 import '../features/version_gate/application/version_gate_providers.dart';
@@ -27,6 +29,30 @@ class _AppState extends ConsumerState<App> {
         ref.read(productionUserRepositoryProvider).ensureUserDocument(user);
       }
     }, fireImmediately: true);
+
+    // "Logged in" audit entry — written once the profile (and so the data
+    // environment) has loaded after an interactive sign-in. Checked from
+    // both sides, as either the flag or the profile can arrive last.
+    ref.listenManual(currentAppUserProvider, (_, _) => _logPendingLogin());
+    ref.listenManual(pendingLoginAuditProvider, (_, _) => _logPendingLogin());
+  }
+
+  void _logPendingLogin() {
+    final appUser = ref.read(currentAppUserProvider).value;
+    if (appUser == null || !ref.read(pendingLoginAuditProvider)) return;
+    ref.read(pendingLoginAuditProvider.notifier).state = false;
+    ref
+        .read(auditLogRepositoryProvider)
+        .log(
+          actorUid: appUser.uid,
+          actorName: appUser.displayName.isNotEmpty ? appUser.displayName : appUser.email,
+          action: AuditAction.login,
+          module: 'auth',
+          targetId: appUser.uid,
+          targetLabel: '',
+        )
+        // Unapproved (pending) accounts can't write the audit log.
+        .catchError((_) {});
   }
 
   @override

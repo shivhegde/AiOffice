@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum AuditAction { create, update, delete }
+enum AuditAction { create, update, delete, login }
 
 class AuditEntry {
   const AuditEntry({
@@ -12,6 +12,7 @@ class AuditEntry {
     required this.targetId,
     required this.targetLabel,
     required this.timestamp,
+    this.appVersion = '',
   });
 
   final String id;
@@ -23,19 +24,21 @@ class AuditEntry {
   final String targetLabel;
   final DateTime timestamp;
 
+  /// App version the actor was running; empty on entries written before
+  /// this was recorded.
+  final String appVersion;
+
   factory AuditEntry.fromMap(String id, Map<String, dynamic> data) {
     return AuditEntry(
       id: id,
       actorUid: data['actorUid'] as String? ?? '',
       actorName: data['actorName'] as String? ?? 'Unknown',
-      action: AuditAction.values.firstWhere(
-        (a) => a.name == data['action'],
-        orElse: () => AuditAction.update,
-      ),
+      action: AuditAction.values.firstWhere((a) => a.name == data['action'], orElse: () => AuditAction.update),
       module: data['module'] as String? ?? '',
       targetId: data['targetId'] as String? ?? '',
       targetLabel: data['targetLabel'] as String? ?? '',
       timestamp: (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      appVersion: data['appVersion'] as String? ?? '',
     );
   }
 
@@ -46,6 +49,7 @@ class AuditEntry {
     required String module,
     required String targetId,
     required String targetLabel,
+    String appVersion = '',
   }) {
     return {
       'actorUid': actorUid,
@@ -54,6 +58,7 @@ class AuditEntry {
       'module': module,
       'targetId': targetId,
       'targetLabel': targetLabel,
+      if (appVersion.isNotEmpty) 'appVersion': appVersion,
       'timestamp': FieldValue.serverTimestamp(),
     };
   }
