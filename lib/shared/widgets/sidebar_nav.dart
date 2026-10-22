@@ -5,6 +5,7 @@ import '../../app/theme/app_colors.dart';
 import '../../app/theme/app_text_theme.dart';
 import '../../core/constants/roles.dart';
 import '../../features/users/application/user_providers.dart';
+import '../../features/version_gate/application/version_gate_providers.dart';
 import '../models/nav_entry.dart';
 
 /// Prototype's `.sidebar` — grouped nav matching the IA in
@@ -65,6 +66,7 @@ class SidebarNav extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.appColors;
     final role = ref.watch(effectiveRoleProvider);
+    final version = ref.watch(currentAppVersionProvider).value;
 
     return Container(
       width: 240,
@@ -97,6 +99,8 @@ class SidebarNav extends ConsumerWidget {
                           'REGISTRY & TASK CONSOLE',
                           style: const TextStyle(fontSize: 10.5, letterSpacing: 0.7, color: Color(0xFFB9B096)),
                         ),
+                        if (version != null)
+                          Text('Version $version', style: const TextStyle(fontSize: 10.5, color: Color(0xFF9E9578))),
                       ],
                     ),
                   ),
