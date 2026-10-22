@@ -4,7 +4,7 @@
 ; Output:               installer\Output\AiOffice-Setup-<version>.exe
 
 #define MyAppName "AiOffice"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppExeName "aioffice.exe"
 #define BuildDir "..\build\windows\x64\runner\Release"
 
