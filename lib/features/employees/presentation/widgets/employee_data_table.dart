@@ -66,6 +66,7 @@ class _StatusChipForEmployee extends StatelessWidget {
       WorkStatus.resigned => StatusChipVariant.warn,
       WorkStatus.retired => StatusChipVariant.accent,
       WorkStatus.contractClosed => StatusChipVariant.critical,
+      WorkStatus.removedTerminated => StatusChipVariant.critical,
     };
     return StatusChip(label: status.label, variant: variant);
   }

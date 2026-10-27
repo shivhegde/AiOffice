@@ -3,8 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'employee_enums.dart';
 
 /// REQUIREMENTS.md §9.1 — Employee Database (own staff). One Firestore
-/// document (`employees/{id}`) per employee; the three document uploads
-/// (Aadhaar Card, PAN Card, Passport Photo) are embedded storage-path
+/// document (`employees/{id}`) per employee; the four document uploads
+/// (Aadhaar Card, PAN Card, Passport Photo, Bank Passbook) are embedded storage-path
 /// fields, matching the WorkOrder FD embedding convention (see
 /// WorkOrderRepository doc comment for why: the record is always built
 /// directly via its constructor, never round-tripped through
@@ -30,17 +30,28 @@ class Employee {
     required this.dateOfAppointment,
     required this.joiningDate,
     required this.department,
+    this.subDepartment = '',
     required this.designation,
     required this.employeeType,
     this.branchLocation = '',
-    this.reportingManager = '',
+    this.remarks = '',
     required this.workStatus,
+    this.epfNumber = '',
+    this.epfJoiningDate,
+    this.esiNumber = '',
+    this.esiJoiningDate,
+    this.bankName = '',
+    this.accountNumber = '',
+    this.ifscCode = '',
+    this.bankBranchName = '',
     this.photoStoragePath,
     this.photoFileName,
     this.aadhaarStoragePath,
     this.aadhaarFileName,
     this.panStoragePath,
     this.panFileName,
+    this.passbookStoragePath,
+    this.passbookFileName,
     required this.createdBy,
     required this.createdByName,
     this.createdAt,
@@ -72,11 +83,22 @@ class Employee {
   final DateTime dateOfAppointment;
   final DateTime joiningDate;
   final String department;
+  final String subDepartment;
   final String designation;
   final EmployeeType employeeType;
   final String branchLocation;
-  final String reportingManager;
+  final String remarks;
   final WorkStatus workStatus;
+  final String epfNumber;
+  final DateTime? epfJoiningDate;
+  final String esiNumber;
+  final DateTime? esiJoiningDate;
+
+  // Bank Account Details
+  final String bankName;
+  final String accountNumber;
+  final String ifscCode;
+  final String bankBranchName;
 
   // Document Upload
   final String? photoStoragePath;
@@ -85,6 +107,8 @@ class Employee {
   final String? aadhaarFileName;
   final String? panStoragePath;
   final String? panFileName;
+  final String? passbookStoragePath;
+  final String? passbookFileName;
 
   final String createdBy;
   final String createdByName;
@@ -94,6 +118,7 @@ class Employee {
   bool get hasPhoto => photoStoragePath != null && photoStoragePath!.isNotEmpty;
   bool get hasAadhaarFile => aadhaarStoragePath != null && aadhaarStoragePath!.isNotEmpty;
   bool get hasPanFile => panStoragePath != null && panStoragePath!.isNotEmpty;
+  bool get hasPassbookFile => passbookStoragePath != null && passbookStoragePath!.isNotEmpty;
 
   /// §9.1 dashboard "New Appointments" — appointed within the current
   /// calendar month.
@@ -123,17 +148,30 @@ class Employee {
       dateOfAppointment: (data['dateOfAppointment'] as Timestamp?)?.toDate() ?? DateTime.now(),
       joiningDate: (data['joiningDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       department: data['department'] as String? ?? '',
+      subDepartment: data['subDepartment'] as String? ?? '',
       designation: data['designation'] as String? ?? '',
       employeeType: EmployeeType.fromWireValue(data['employeeType'] as String?),
       branchLocation: data['branchLocation'] as String? ?? '',
-      reportingManager: data['reportingManager'] as String? ?? '',
+      // Remarks replaced Reporting Manager; older employees keep showing
+      // what was entered there until the record is next saved.
+      remarks: data['remarks'] as String? ?? data['reportingManager'] as String? ?? '',
       workStatus: WorkStatus.fromWireValue(data['workStatus'] as String?),
+      epfNumber: data['epfNumber'] as String? ?? '',
+      epfJoiningDate: (data['epfJoiningDate'] as Timestamp?)?.toDate(),
+      esiNumber: data['esiNumber'] as String? ?? '',
+      esiJoiningDate: (data['esiJoiningDate'] as Timestamp?)?.toDate(),
+      bankName: data['bankName'] as String? ?? '',
+      accountNumber: data['accountNumber'] as String? ?? '',
+      ifscCode: data['ifscCode'] as String? ?? '',
+      bankBranchName: data['bankBranchName'] as String? ?? '',
       photoStoragePath: data['photoStoragePath'] as String?,
       photoFileName: data['photoFileName'] as String?,
       aadhaarStoragePath: data['aadhaarStoragePath'] as String?,
       aadhaarFileName: data['aadhaarFileName'] as String?,
       panStoragePath: data['panStoragePath'] as String?,
       panFileName: data['panFileName'] as String?,
+      passbookStoragePath: data['passbookStoragePath'] as String?,
+      passbookFileName: data['passbookFileName'] as String?,
       createdBy: data['createdBy'] as String? ?? '',
       createdByName: data['createdByName'] as String? ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
@@ -168,17 +206,28 @@ class Employee {
       'dateOfAppointment': Timestamp.fromDate(dateOfAppointment),
       'joiningDate': Timestamp.fromDate(joiningDate),
       'department': department,
+      'subDepartment': subDepartment,
       'designation': designation,
       'employeeType': employeeType.wireValue,
       'branchLocation': branchLocation,
-      'reportingManager': reportingManager,
+      'remarks': remarks,
       'workStatus': workStatus.wireValue,
+      'epfNumber': epfNumber,
+      'epfJoiningDate': epfJoiningDate != null ? Timestamp.fromDate(epfJoiningDate!) : null,
+      'esiNumber': esiNumber,
+      'esiJoiningDate': esiJoiningDate != null ? Timestamp.fromDate(esiJoiningDate!) : null,
+      'bankName': bankName,
+      'accountNumber': accountNumber,
+      'ifscCode': ifscCode,
+      'bankBranchName': bankBranchName,
       if (photoStoragePath != null) 'photoStoragePath': photoStoragePath,
       if (photoFileName != null) 'photoFileName': photoFileName,
       if (aadhaarStoragePath != null) 'aadhaarStoragePath': aadhaarStoragePath,
       if (aadhaarFileName != null) 'aadhaarFileName': aadhaarFileName,
       if (panStoragePath != null) 'panStoragePath': panStoragePath,
       if (panFileName != null) 'panFileName': panFileName,
+      if (passbookStoragePath != null) 'passbookStoragePath': passbookStoragePath,
+      if (passbookFileName != null) 'passbookFileName': passbookFileName,
       'searchKeywords': searchKeywords.toList(),
       'createdBy': createdBy,
       'createdByName': createdByName,

@@ -13,7 +13,7 @@ import '../domain/employee_enums.dart';
 
 /// Create/edit form for an Employee — matches REQUIREMENTS.md §9.1's
 /// Basic Information / Identity Details / Appointment Information /
-/// Document Upload sections.
+/// Bank Account Details / Document Upload sections.
 class EmployeeFormSlideover {
   EmployeeFormSlideover._();
 
@@ -50,13 +50,22 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
   final _aadhaarController = TextEditingController();
   final _panController = TextEditingController();
   final _departmentController = TextEditingController();
+  final _subDepartmentController = TextEditingController();
   final _designationController = TextEditingController();
   final _branchLocationController = TextEditingController();
-  final _reportingManagerController = TextEditingController();
+  final _remarksController = TextEditingController();
+  final _epfNumberController = TextEditingController();
+  final _esiNumberController = TextEditingController();
+  final _bankNameController = TextEditingController();
+  final _accountNumberController = TextEditingController();
+  final _ifscController = TextEditingController();
+  final _bankBranchNameController = TextEditingController();
 
   late DateTime _dateOfBirth;
   late DateTime _dateOfAppointment;
   late DateTime _joiningDate;
+  DateTime? _epfJoiningDate;
+  DateTime? _esiJoiningDate;
   Gender _gender = Gender.male;
   EmployeeType _employeeType = EmployeeType.permanent;
   WorkStatus _workStatus = WorkStatus.active;
@@ -64,6 +73,7 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
   ({Uint8List bytes, String name, String contentType})? _pendingPhoto;
   ({Uint8List bytes, String name, String contentType})? _pendingAadhaarFile;
   ({Uint8List bytes, String name, String contentType})? _pendingPanFile;
+  ({Uint8List bytes, String name, String contentType})? _pendingPassbookFile;
 
   bool _submitting = false;
   bool get _isEditing => widget.existing != null;
@@ -84,9 +94,18 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
     _aadhaarController.text = e?.aadhaarNumber ?? '';
     _panController.text = e?.panNumber ?? '';
     _departmentController.text = e?.department ?? '';
+    _subDepartmentController.text = e?.subDepartment ?? '';
     _designationController.text = e?.designation ?? '';
     _branchLocationController.text = e?.branchLocation ?? '';
-    _reportingManagerController.text = e?.reportingManager ?? '';
+    _remarksController.text = e?.remarks ?? '';
+    _epfNumberController.text = e?.epfNumber ?? '';
+    _esiNumberController.text = e?.esiNumber ?? '';
+    _bankNameController.text = e?.bankName ?? '';
+    _accountNumberController.text = e?.accountNumber ?? '';
+    _ifscController.text = e?.ifscCode ?? '';
+    _bankBranchNameController.text = e?.bankBranchName ?? '';
+    _epfJoiningDate = e?.epfJoiningDate;
+    _esiJoiningDate = e?.esiJoiningDate;
 
     _dateOfBirth = e?.dateOfBirth ?? DateTime(1990, 1, 1);
     _dateOfAppointment = e?.dateOfAppointment ?? DateTime.now();
@@ -110,9 +129,16 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
     _aadhaarController.dispose();
     _panController.dispose();
     _departmentController.dispose();
+    _subDepartmentController.dispose();
     _designationController.dispose();
     _branchLocationController.dispose();
-    _reportingManagerController.dispose();
+    _remarksController.dispose();
+    _epfNumberController.dispose();
+    _esiNumberController.dispose();
+    _bankNameController.dispose();
+    _accountNumberController.dispose();
+    _ifscController.dispose();
+    _bankBranchNameController.dispose();
     super.dispose();
   }
 
@@ -224,17 +250,28 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
         dateOfAppointment: _dateOfAppointment,
         joiningDate: _joiningDate,
         department: _departmentController.text.trim(),
+        subDepartment: _subDepartmentController.text.trim(),
         designation: _designationController.text.trim(),
         employeeType: _employeeType,
         branchLocation: _branchLocationController.text.trim(),
-        reportingManager: _reportingManagerController.text.trim(),
+        remarks: _remarksController.text.trim(),
         workStatus: _workStatus,
+        epfNumber: _epfNumberController.text.trim(),
+        epfJoiningDate: _epfJoiningDate,
+        esiNumber: _esiNumberController.text.trim(),
+        esiJoiningDate: _esiJoiningDate,
+        bankName: _bankNameController.text.trim(),
+        accountNumber: _accountNumberController.text.trim(),
+        ifscCode: _ifscController.text.trim().toUpperCase(),
+        bankBranchName: _bankBranchNameController.text.trim(),
         photoStoragePath: widget.existing?.photoStoragePath,
         photoFileName: widget.existing?.photoFileName,
         aadhaarStoragePath: widget.existing?.aadhaarStoragePath,
         aadhaarFileName: widget.existing?.aadhaarFileName,
         panStoragePath: widget.existing?.panStoragePath,
         panFileName: widget.existing?.panFileName,
+        passbookStoragePath: widget.existing?.passbookStoragePath,
+        passbookFileName: widget.existing?.passbookFileName,
         createdBy: widget.existing?.createdBy ?? actorUid,
         createdByName: widget.existing?.createdByName ?? actorName,
         createdAt: widget.existing?.createdAt,
@@ -249,6 +286,7 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
           photoFile: _pendingPhoto,
           aadhaarFile: _pendingAadhaarFile,
           panFile: _pendingPanFile,
+          passbookFile: _pendingPassbookFile,
         );
       } else {
         await repo.create(
@@ -258,6 +296,7 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
           photoFile: _pendingPhoto,
           aadhaarFile: _pendingAadhaarFile,
           panFile: _pendingPanFile,
+          passbookFile: _pendingPassbookFile,
         );
       }
 
@@ -272,6 +311,32 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
+  }
+
+  /// Distinct non-empty values already entered on other employees, for
+  /// the Department / Sub-Department pulldowns.
+  List<String> _previousValues(String Function(Employee e) pick) {
+    final all = ref.watch(employeeListProvider).value ?? const <Employee>[];
+    final values = {
+      for (final e in all)
+        if (pick(e).trim().isNotEmpty) pick(e).trim(),
+    }.toList();
+    return values..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  }
+
+  /// Pulldown of previously entered values that still accepts free text —
+  /// same pattern as the Work Order Department field.
+  Widget _pickOrTypeField(TextEditingController controller, List<String> options) {
+    return DropdownMenu<String>(
+      controller: controller,
+      expandedInsets: EdgeInsets.zero,
+      enableFilter: true,
+      requestFocusOnTap: true,
+      dropdownMenuEntries: [for (final o in options) DropdownMenuEntry(value: o, label: o)],
+      onSelected: (value) {
+        if (value != null) controller.text = value;
+      },
+    );
   }
 
   Widget _sectionHeader(String title, {bool withDivider = true}) {
@@ -417,17 +482,21 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
             Expanded(
               child: FormRowLabel(
                 label: 'Department',
-                child: TextField(controller: _departmentController),
+                child: _pickOrTypeField(_departmentController, _previousValues((e) => e.department)),
               ),
             ),
             const SizedBox(width: 10),
             Expanded(
               child: FormRowLabel(
-                label: 'Designation',
-                child: TextField(controller: _designationController),
+                label: 'Sub-Department',
+                child: _pickOrTypeField(_subDepartmentController, _previousValues((e) => e.subDepartment)),
               ),
             ),
           ],
+        ),
+        FormRowLabel(
+          label: 'Designation',
+          child: TextField(controller: _designationController),
         ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -469,8 +538,76 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
             const SizedBox(width: 10),
             Expanded(
               child: FormRowLabel(
-                label: 'Reporting Manager',
-                child: TextField(controller: _reportingManagerController),
+                label: 'Remarks',
+                child: TextField(controller: _remarksController),
+              ),
+            ),
+          ],
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: FormRowLabel(
+                label: 'EPF Number',
+                child: TextField(controller: _epfNumberController),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _dateButton('EPF Joining Date', _epfJoiningDate, (d) => setState(() => _epfJoiningDate = d)),
+            ),
+          ],
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: FormRowLabel(
+                label: 'ESI Number',
+                child: TextField(controller: _esiNumberController),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _dateButton('ESI Joining Date', _esiJoiningDate, (d) => setState(() => _esiJoiningDate = d)),
+            ),
+          ],
+        ),
+
+        _sectionHeader('Bank Account Details'),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: FormRowLabel(
+                label: 'Bank Name',
+                child: TextField(controller: _bankNameController),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FormRowLabel(
+                label: 'Account Number',
+                child: TextField(controller: _accountNumberController),
+              ),
+            ),
+          ],
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: FormRowLabel(
+                label: 'IFSC Code',
+                child: TextField(controller: _ifscController, textCapitalization: TextCapitalization.characters),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FormRowLabel(
+                label: 'Branch Name',
+                child: TextField(controller: _bankBranchNameController),
               ),
             ),
           ],
@@ -497,6 +634,13 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
           existingFileName: widget.existing?.panFileName,
           existingStoragePath: widget.existing?.panStoragePath,
           onPicked: (f) => _pendingPanFile = f,
+        ),
+        _fileUploadRow(
+          label: 'Bank Passbook',
+          pending: _pendingPassbookFile,
+          existingFileName: widget.existing?.passbookFileName,
+          existingStoragePath: widget.existing?.passbookStoragePath,
+          onPicked: (f) => _pendingPassbookFile = f,
         ),
 
         const SizedBox(height: 14),

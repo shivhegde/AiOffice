@@ -56,6 +56,7 @@ class EmployeeRepository {
     ({Uint8List bytes, String name, String contentType})? photoFile,
     ({Uint8List bytes, String name, String contentType})? aadhaarFile,
     ({Uint8List bytes, String name, String contentType})? panFile,
+    ({Uint8List bytes, String name, String contentType})? passbookFile,
   }) async {
     final year = draft.dateOfAppointment.year;
     final sequence = await _counter.nextSequence(type: 'emp', year: year);
@@ -66,6 +67,7 @@ class EmployeeRepository {
     final photoPath = await _uploadIfPresent(docId: docRef.id, slot: 'photo', year: year, file: photoFile);
     final aadhaarPath = await _uploadIfPresent(docId: docRef.id, slot: 'aadhaar', year: year, file: aadhaarFile);
     final panPath = await _uploadIfPresent(docId: docRef.id, slot: 'pan', year: year, file: panFile);
+    final passbookPath = await _uploadIfPresent(docId: docRef.id, slot: 'passbook', year: year, file: passbookFile);
 
     final toSave = Employee(
       id: docRef.id,
@@ -87,17 +89,28 @@ class EmployeeRepository {
       dateOfAppointment: draft.dateOfAppointment,
       joiningDate: draft.joiningDate,
       department: draft.department,
+      subDepartment: draft.subDepartment,
       designation: draft.designation,
       employeeType: draft.employeeType,
       branchLocation: draft.branchLocation,
-      reportingManager: draft.reportingManager,
+      remarks: draft.remarks,
       workStatus: draft.workStatus,
+      epfNumber: draft.epfNumber,
+      epfJoiningDate: draft.epfJoiningDate,
+      esiNumber: draft.esiNumber,
+      esiJoiningDate: draft.esiJoiningDate,
+      bankName: draft.bankName,
+      accountNumber: draft.accountNumber,
+      ifscCode: draft.ifscCode,
+      bankBranchName: draft.bankBranchName,
       photoStoragePath: photoPath,
       photoFileName: photoPath != null ? photoFile!.name : null,
       aadhaarStoragePath: aadhaarPath,
       aadhaarFileName: aadhaarPath != null ? aadhaarFile!.name : null,
       panStoragePath: panPath,
       panFileName: panPath != null ? panFile!.name : null,
+      passbookStoragePath: passbookPath,
+      passbookFileName: passbookPath != null ? passbookFile!.name : null,
       createdBy: actorUid,
       createdByName: actorName,
     );
@@ -122,6 +135,7 @@ class EmployeeRepository {
     ({Uint8List bytes, String name, String contentType})? photoFile,
     ({Uint8List bytes, String name, String contentType})? aadhaarFile,
     ({Uint8List bytes, String name, String contentType})? panFile,
+    ({Uint8List bytes, String name, String contentType})? passbookFile,
   }) async {
     final photoPath = await _uploadIfPresent(docId: employee.id, slot: 'photo', year: employee.year, file: photoFile);
     final aadhaarPath = await _uploadIfPresent(
@@ -131,6 +145,12 @@ class EmployeeRepository {
       file: aadhaarFile,
     );
     final panPath = await _uploadIfPresent(docId: employee.id, slot: 'pan', year: employee.year, file: panFile);
+    final passbookPath = await _uploadIfPresent(
+      docId: employee.id,
+      slot: 'passbook',
+      year: employee.year,
+      file: passbookFile,
+    );
 
     final toSave = Employee(
       id: employee.id,
@@ -152,17 +172,28 @@ class EmployeeRepository {
       dateOfAppointment: employee.dateOfAppointment,
       joiningDate: employee.joiningDate,
       department: employee.department,
+      subDepartment: employee.subDepartment,
       designation: employee.designation,
       employeeType: employee.employeeType,
       branchLocation: employee.branchLocation,
-      reportingManager: employee.reportingManager,
+      remarks: employee.remarks,
       workStatus: employee.workStatus,
+      epfNumber: employee.epfNumber,
+      epfJoiningDate: employee.epfJoiningDate,
+      esiNumber: employee.esiNumber,
+      esiJoiningDate: employee.esiJoiningDate,
+      bankName: employee.bankName,
+      accountNumber: employee.accountNumber,
+      ifscCode: employee.ifscCode,
+      bankBranchName: employee.bankBranchName,
       photoStoragePath: photoPath ?? employee.photoStoragePath,
       photoFileName: photoPath != null ? photoFile!.name : employee.photoFileName,
       aadhaarStoragePath: aadhaarPath ?? employee.aadhaarStoragePath,
       aadhaarFileName: aadhaarPath != null ? aadhaarFile!.name : employee.aadhaarFileName,
       panStoragePath: panPath ?? employee.panStoragePath,
       panFileName: panPath != null ? panFile!.name : employee.panFileName,
+      passbookStoragePath: passbookPath ?? employee.passbookStoragePath,
+      passbookFileName: passbookPath != null ? passbookFile!.name : employee.passbookFileName,
       createdBy: employee.createdBy,
       createdByName: employee.createdByName,
       createdAt: employee.createdAt,
@@ -180,7 +211,12 @@ class EmployeeRepository {
   }
 
   Future<void> delete({required Employee employee, required String actorUid, required String actorName}) async {
-    for (final path in [employee.photoStoragePath, employee.aadhaarStoragePath, employee.panStoragePath]) {
+    for (final path in [
+      employee.photoStoragePath,
+      employee.aadhaarStoragePath,
+      employee.panStoragePath,
+      employee.passbookStoragePath,
+    ]) {
       if (path != null && path.isNotEmpty) {
         await _storage.delete(path);
       }

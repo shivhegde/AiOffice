@@ -33,7 +33,8 @@ enum WorkStatus {
   inactive('inactive', 'Inactive'),
   resigned('resigned', 'Resigned'),
   retired('retired', 'Retired'),
-  contractClosed('contract_closed', 'Contract Closed');
+  contractClosed('contract_closed', 'Contract Closed'),
+  removedTerminated('removed_terminated', 'Terminated');
 
   const WorkStatus(this.wireValue, this.label);
 
