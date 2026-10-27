@@ -36,6 +36,8 @@ class Candidate {
     this.languagesOther = '',
     this.height = '',
     this.exServiceman = false,
+    this.applicationDate,
+    this.remarks = '',
     this.resumeStoragePath,
     this.resumeFileName,
     required this.createdBy,
@@ -87,6 +89,11 @@ class Candidate {
   final String height;
   final bool exServiceman;
 
+  // Application Details
+  /// Null on candidates saved before this field existed.
+  final DateTime? applicationDate;
+  final String remarks;
+
   // Document Storage
   final String? resumeStoragePath;
   final String? resumeFileName;
@@ -125,7 +132,11 @@ class Candidate {
   bool get hasResume => resumeStoragePath != null && resumeStoragePath!.isNotEmpty;
 
   /// §9.2 Personal Information "Age (auto-calculated)".
-  int get age {
+  int get age => ageFrom(dateOfBirth);
+
+  /// Completed years from [dateOfBirth] to today — also used by the form's
+  /// read-only Age field.
+  static int ageFrom(DateTime dateOfBirth) {
     final now = DateTime.now();
     var years = now.year - dateOfBirth.year;
     if (now.month < dateOfBirth.month || (now.month == dateOfBirth.month && now.day < dateOfBirth.day)) {
@@ -187,6 +198,8 @@ class Candidate {
       languagesOther: data['languagesOther'] as String? ?? '',
       height: data['height'] as String? ?? '',
       exServiceman: data['exServiceman'] as bool? ?? false,
+      applicationDate: (data['applicationDate'] as Timestamp?)?.toDate(),
+      remarks: data['remarks'] as String? ?? '',
       resumeStoragePath: data['resumeStoragePath'] as String?,
       resumeFileName: data['resumeFileName'] as String?,
       createdBy: data['createdBy'] as String? ?? '',
@@ -234,6 +247,8 @@ class Candidate {
       'languagesOther': languagesOther,
       'height': height,
       'exServiceman': exServiceman,
+      if (applicationDate != null) 'applicationDate': Timestamp.fromDate(applicationDate!),
+      'remarks': remarks,
       if (resumeStoragePath != null) 'resumeStoragePath': resumeStoragePath,
       if (resumeFileName != null) 'resumeFileName': resumeFileName,
       'searchKeywords': searchKeywords.toList(),

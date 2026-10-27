@@ -14,7 +14,7 @@ import '../domain/candidate_enums.dart';
 /// Create/edit form for a Candidate — matches REQUIREMENTS.md §9.2's
 /// Personal Information / Address Information / Education Details /
 /// Category / Experience / Languages / Physical Information (security
-/// roles only) / Document Storage sections.
+/// roles only) / Application Details / Document Storage sections.
 class CandidateFormSlideover {
   CandidateFormSlideover._();
 
@@ -56,8 +56,10 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
   final _educationOtherController = TextEditingController();
   final _languagesOtherController = TextEditingController();
   final _categoryOtherController = TextEditingController();
+  final _remarksController = TextEditingController();
 
   late DateTime _dateOfBirth;
+  late DateTime _applicationDate;
   Gender _gender = Gender.male;
   MaritalStatus _maritalStatus = MaritalStatus.single;
   ExperienceLevel _experience = ExperienceLevel.fresher;
@@ -98,6 +100,8 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
     _maritalStatus = e?.maritalStatus ?? MaritalStatus.single;
     _experience = e?.experience ?? ExperienceLevel.fresher;
     _exServiceman = e?.exServiceman ?? false;
+    _applicationDate = e?.applicationDate ?? e?.createdAt ?? DateTime.now();
+    _remarksController.text = e?.remarks ?? '';
     if (e != null) {
       _education.addAll(e.education);
       _languages.addAll(e.languagesKnown);
@@ -119,6 +123,7 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
     _stateController.dispose();
     _pincodeController.dispose();
     _heightController.dispose();
+    _remarksController.dispose();
     _genderOtherController.dispose();
     _maritalStatusOtherController.dispose();
     _educationOtherController.dispose();
@@ -214,6 +219,8 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
         languagesOther: _languages.contains(Language.others) ? _languagesOtherController.text.trim() : '',
         height: _isSecurityCategory ? _heightController.text.trim() : '',
         exServiceman: _isSecurityCategory ? _exServiceman : false,
+        applicationDate: _applicationDate,
+        remarks: _remarksController.text.trim(),
         resumeStoragePath: widget.existing?.resumeStoragePath,
         resumeFileName: widget.existing?.resumeFileName,
         createdBy: widget.existing?.createdBy ?? actorUid,
@@ -342,6 +349,20 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
             const SizedBox(width: 10),
             Expanded(
               child: FormRowLabel(
+                label: 'Age (Years)',
+                child: InputDecorator(
+                  decoration: const InputDecoration(enabled: false),
+                  child: Text('${Candidate.ageFrom(_dateOfBirth)}'),
+                ),
+              ),
+            ),
+          ],
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: FormRowLabel(
                 label: 'Gender',
                 child: DropdownButtonFormField<Gender>(
                   initialValue: _gender,
@@ -351,18 +372,21 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
                 ),
               ),
             ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FormRowLabel(
+                label: 'Marital Status',
+                child: DropdownButtonFormField<MaritalStatus>(
+                  initialValue: _maritalStatus,
+                  isExpanded: true,
+                  items: [for (final m in MaritalStatus.values) DropdownMenuItem(value: m, child: Text(m.label))],
+                  onChanged: (v) => setState(() => _maritalStatus = v ?? MaritalStatus.single),
+                ),
+              ),
+            ),
           ],
         ),
         if (_gender == Gender.other) _otherField('Specify Gender', _genderOtherController),
-        FormRowLabel(
-          label: 'Marital Status',
-          child: DropdownButtonFormField<MaritalStatus>(
-            initialValue: _maritalStatus,
-            isExpanded: true,
-            items: [for (final m in MaritalStatus.values) DropdownMenuItem(value: m, child: Text(m.label))],
-            onChanged: (v) => setState(() => _maritalStatus = v ?? MaritalStatus.single),
-          ),
-        ),
         if (_maritalStatus == MaritalStatus.other) _otherField('Specify Marital Status', _maritalStatusOtherController),
 
         _sectionHeader('Address Information'),
@@ -483,6 +507,13 @@ class _CandidateFormState extends ConsumerState<_CandidateForm> {
             ],
           ),
         ],
+
+        _sectionHeader('Application Details'),
+        _dateButton('Application Date', _applicationDate, (d) => setState(() => _applicationDate = d)),
+        FormRowLabel(
+          label: 'Remarks',
+          child: TextField(controller: _remarksController, maxLines: 3),
+        ),
 
         _sectionHeader('Document Storage'),
         FormRowLabel(
