@@ -22,7 +22,7 @@ WorkOrder _draft({
   final date = workOrderDate ?? DateTime(2026, 7, 31);
   return WorkOrder(
     id: '',
-    workOrderNumber: '',
+    workOrderNumber: 'PWD/EE/WO/2026/45',
     year: date.year,
     workOrderDate: date,
     departmentName: 'PWD',
@@ -63,16 +63,14 @@ void main() {
   setUp(() {
     firestore = FakeFirebaseFirestore();
     storage = _MockStorageUploadService();
-    repository = WorkOrderRepository(
-      firestore: firestore,
-      storage: storage,
-      auditLog: AuditLogRepository(firestore),
-    );
+    repository = WorkOrderRepository(firestore: firestore, storage: storage, auditLog: AuditLogRepository(firestore));
   });
 
-  test('first work order of a year is numbered WO/YYYY/0001', () async {
+  test('create keeps the work order number the user entered', () async {
     final saved = await repository.create(draft: _draft(), actorUid: 'actor-1', actorName: 'Actor One');
-    expect(saved.workOrderNumber, 'WO/2026/0001');
+    expect(saved.workOrderNumber, 'PWD/EE/WO/2026/45');
+    final stored = await firestore.collection('work_orders').doc(saved.id).get();
+    expect(stored.data()!['workOrderNumber'], 'PWD/EE/WO/2026/45');
   });
 
   test('create without an FD leaves hasFd false', () async {

@@ -3,15 +3,14 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../core/constants/firestore_paths.dart';
-import '../../../core/services/firestore_counter_service.dart';
 import '../../../core/services/storage_upload_service.dart';
 import '../../audit/data/audit_log_repository.dart';
 import '../../audit/domain/audit_entry.dart';
 import '../domain/work_order.dart';
 
-/// Work Order + embedded Fixed Deposit CRUD (REQUIREMENTS.md §8). Same
-/// pattern as `IoRepository`/`TenderRepository`: doc numbers via
-/// [FirestoreCounterService], and the final [WorkOrder] is always built
+/// Work Order + embedded Fixed Deposit CRUD (REQUIREMENTS.md §8). The
+/// work order number is entered by the user, not generated. Same pattern
+/// as `IoRepository`/`TenderRepository`: the final [WorkOrder] is always built
 /// directly via its constructor (never round-tripped through
 /// `toMap()`/`fromMap()`, which would crash on the unresolved
 /// `FieldValue.serverTimestamp()` sentinel in `createdAt` — see
@@ -23,13 +22,11 @@ class WorkOrderRepository {
     required AuditLogRepository auditLog,
   }) : _firestore = firestore,
        _storage = storage,
-       _auditLog = auditLog,
-       _counter = FirestoreCounterService(firestore);
+       _auditLog = auditLog;
 
   final FirebaseFirestore _firestore;
   final StorageUploadService _storage;
   final AuditLogRepository _auditLog;
-  final FirestoreCounterService _counter;
 
   CollectionReference<Map<String, dynamic>> get _collection => _firestore.collection(FirestorePaths.workOrders);
 
@@ -49,8 +46,7 @@ class WorkOrderRepository {
     String? fdFileContentType,
   }) async {
     final year = draft.workOrderDate.year;
-    final sequence = await _counter.nextSequence(type: 'wo', year: year);
-    final workOrderNumber = FirestoreCounterService.formatDocNumber(prefix: 'WO', year: year, sequence: sequence);
+    final workOrderNumber = draft.workOrderNumber.trim();
 
     final docRef = _collection.doc();
 
@@ -69,7 +65,9 @@ class WorkOrderRepository {
       workOrderNumber: workOrderNumber,
       year: year,
       workOrderDate: draft.workOrderDate,
+      workOrderReceivedDate: draft.workOrderReceivedDate,
       departmentName: draft.departmentName,
+      subDepartmentName: draft.subDepartmentName,
       contractType: draft.contractType,
       startDate: draft.startDate,
       endDate: draft.endDate,
@@ -139,7 +137,9 @@ class WorkOrderRepository {
         workOrderNumber: workOrder.workOrderNumber,
         year: workOrder.year,
         workOrderDate: workOrder.workOrderDate,
+        workOrderReceivedDate: workOrder.workOrderReceivedDate,
         departmentName: workOrder.departmentName,
+        subDepartmentName: workOrder.subDepartmentName,
         contractType: workOrder.contractType,
         startDate: workOrder.startDate,
         endDate: workOrder.endDate,

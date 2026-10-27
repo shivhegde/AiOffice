@@ -38,7 +38,9 @@ class _WorkOrderForm extends ConsumerStatefulWidget {
 }
 
 class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
+  final _workOrderNumberController = TextEditingController();
   final _departmentController = TextEditingController();
+  final _subDepartmentController = TextEditingController();
   final _remarksController = TextEditingController();
   final _extensionOrderNumberController = TextEditingController();
   final _extensionReasonController = TextEditingController();
@@ -59,6 +61,7 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
   final _fdInterestRateController = TextEditingController();
 
   late DateTime _workOrderDate;
+  DateTime? _workOrderReceivedDate;
   late DateTime _startDate;
   DateTime? _endDate;
   bool _extensionAvailable = false;
@@ -78,7 +81,9 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
   void initState() {
     super.initState();
     final e = widget.existing;
+    _workOrderNumberController.text = e?.workOrderNumber ?? '';
     _departmentController.text = e?.departmentName ?? '';
+    _subDepartmentController.text = e?.subDepartmentName ?? '';
     _remarksController.text = e?.remarks ?? '';
     _extensionOrderNumberController.text = e?.extensionOrderNumber ?? '';
     _extensionReasonController.text = e?.extensionReason ?? '';
@@ -99,6 +104,7 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
     _fdInterestRateController.text = e?.fdInterestRate != null ? e!.fdInterestRate!.toStringAsFixed(2) : '';
 
     _workOrderDate = e?.workOrderDate ?? DateTime.now();
+    _workOrderReceivedDate = e?.workOrderReceivedDate;
     _startDate = e?.startDate ?? DateTime.now();
     _endDate = e?.endDate;
     _extensionAvailable = e?.extensionAvailable ?? false;
@@ -113,7 +119,9 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
 
   @override
   void dispose() {
+    _workOrderNumberController.dispose();
     _departmentController.dispose();
+    _subDepartmentController.dispose();
     _remarksController.dispose();
     _extensionOrderNumberController.dispose();
     _extensionReasonController.dispose();
@@ -172,11 +180,23 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
     });
   }
 
-
   Future<void> _submit() async {
+    final workOrderNumber = _workOrderNumberController.text.trim();
     final departmentName = _departmentController.text.trim();
-    if (departmentName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Department is required.')));
+    if (workOrderNumber.isEmpty || departmentName.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Work Order Number and Department are required.')));
+      return;
+    }
+    final allWorkOrders = ref.read(workOrderListProvider).value ?? const <WorkOrder>[];
+    final duplicate = allWorkOrders.any(
+      (wo) => wo.id != widget.existing?.id && wo.workOrderNumber.trim().toLowerCase() == workOrderNumber.toLowerCase(),
+    );
+    if (duplicate) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Work Order Number $workOrderNumber is already used by another work order.')),
+      );
       return;
     }
 
@@ -191,10 +211,12 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
 
       final draft = WorkOrder(
         id: widget.existing?.id ?? '',
-        workOrderNumber: widget.existing?.workOrderNumber ?? '',
-        year: _workOrderDate.year,
+        workOrderNumber: workOrderNumber,
+        year: widget.existing?.year ?? _workOrderDate.year,
         workOrderDate: _workOrderDate,
+        workOrderReceivedDate: _workOrderReceivedDate,
         departmentName: departmentName,
+        subDepartmentName: _subDepartmentController.text.trim(),
         contractType: _contractType,
         startDate: _startDate,
         endDate: _contractType == ContractType.tillNextTender ? null : _endDate,
@@ -291,6 +313,27 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
     );
   }
 
+  /// Same pick-or-type pulldown as [_departmentField], over the
+  /// sub-departments already entered on other work orders.
+  Widget _subDepartmentField() {
+    final all = ref.watch(workOrderListProvider).value ?? const <WorkOrder>[];
+    final names = {
+      for (final wo in all)
+        if (wo.subDepartmentName.trim().isNotEmpty) wo.subDepartmentName.trim(),
+    }.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
+    return DropdownMenu<String>(
+      controller: _subDepartmentController,
+      expandedInsets: EdgeInsets.zero,
+      enableFilter: true,
+      requestFocusOnTap: true,
+      dropdownMenuEntries: [for (final n in names) DropdownMenuEntry(value: n, label: n)],
+      onSelected: (value) {
+        if (value != null) _subDepartmentController.text = value;
+      },
+    );
+  }
+
   Widget _sectionHeader(String title, {bool withDivider = true}) {
     return Padding(
       padding: EdgeInsets.only(top: withDivider ? 18 : 4, bottom: 8),
@@ -310,16 +353,36 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_isEditing)
-          FormRowLabel(
-            label: 'Work Order Number',
-            child: TextField(
-              controller: TextEditingController(text: widget.existing!.workOrderNumber),
-              enabled: false,
+        FormRowLabel(
+          label: 'Work Order Number',
+          child: TextField(controller: _workOrderNumberController),
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _dateButton('Work Order Date', _workOrderDate, (d) => setState(() => _workOrderDate = d))),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _dateButton(
+                'Work Order Received Date',
+                _workOrderReceivedDate,
+                (d) => setState(() => _workOrderReceivedDate = d),
+              ),
             ),
-          ),
-        _dateButton('Work Order Date', _workOrderDate, (d) => setState(() => _workOrderDate = d)),
-        FormRowLabel(label: 'Department', child: _departmentField()),
+          ],
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: FormRowLabel(label: 'Department', child: _departmentField()),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FormRowLabel(label: 'Sub-Department', child: _subDepartmentField()),
+            ),
+          ],
+        ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -341,9 +404,7 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
                 child: DropdownButtonFormField<WorkOrderStatus>(
                   initialValue: _status,
                   isExpanded: true,
-                  items: [
-                    for (final s in WorkOrderStatus.values) DropdownMenuItem(value: s, child: Text(s.label)),
-                  ],
+                  items: [for (final s in WorkOrderStatus.values) DropdownMenuItem(value: s, child: Text(s.label))],
                   onChanged: (v) => setState(() => _status = v ?? WorkOrderStatus.active),
                 ),
               ),
@@ -383,33 +444,67 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _dateButton('Extension End Date', _extensionEndDate, (d) => setState(() => _extensionEndDate = d)),
+                child: _dateButton(
+                  'Extension End Date',
+                  _extensionEndDate,
+                  (d) => setState(() => _extensionEndDate = d),
+                ),
               ),
             ],
           ),
-          FormRowLabel(label: 'Extension Order Number', child: TextField(controller: _extensionOrderNumberController)),
-          FormRowLabel(label: 'Extension Reason', child: TextField(controller: _extensionReasonController, maxLines: 2)),
+          FormRowLabel(
+            label: 'Extension Order Number',
+            child: TextField(controller: _extensionOrderNumberController),
+          ),
+          FormRowLabel(
+            label: 'Extension Reason',
+            child: TextField(controller: _extensionReasonController, maxLines: 2),
+          ),
         ],
-        FormRowLabel(label: 'Remarks', child: TextField(controller: _remarksController, maxLines: 2)),
+        FormRowLabel(
+          label: 'Remarks',
+          child: TextField(controller: _remarksController, maxLines: 2),
+        ),
 
         _sectionHeader('Department Information'),
-        FormRowLabel(label: 'Office Address', child: TextField(controller: _deptOfficeAddressController, maxLines: 2)),
+        FormRowLabel(
+          label: 'Office Address',
+          child: TextField(controller: _deptOfficeAddressController, maxLines: 2),
+        ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: FormRowLabel(label: 'Contact Person', child: TextField(controller: _deptContactPersonController)),
+              child: FormRowLabel(
+                label: 'Contact Person',
+                child: TextField(controller: _deptContactPersonController),
+              ),
             ),
             const SizedBox(width: 10),
-            Expanded(child: FormRowLabel(label: 'Phone Number', child: TextField(controller: _deptPhoneController))),
+            Expanded(
+              child: FormRowLabel(
+                label: 'Phone Number',
+                child: TextField(controller: _deptPhoneController),
+              ),
+            ),
           ],
         ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: FormRowLabel(label: 'Email', child: TextField(controller: _deptEmailController))),
+            Expanded(
+              child: FormRowLabel(
+                label: 'Email',
+                child: TextField(controller: _deptEmailController),
+              ),
+            ),
             const SizedBox(width: 10),
-            Expanded(child: FormRowLabel(label: 'GSTIN No.', child: TextField(controller: _deptGSTINController))),
+            Expanded(
+              child: FormRowLabel(
+                label: 'GSTIN No.',
+                child: TextField(controller: _deptGSTINController),
+              ),
+            ),
           ],
         ),
 
@@ -441,9 +536,19 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: FormRowLabel(label: 'Tender Number', child: TextField(controller: _tenderNumberController))),
+            Expanded(
+              child: FormRowLabel(
+                label: 'Tender Number',
+                child: TextField(controller: _tenderNumberController),
+              ),
+            ),
             const SizedBox(width: 10),
-            Expanded(child: FormRowLabel(label: 'Tender Name', child: TextField(controller: _tenderNameController))),
+            Expanded(
+              child: FormRowLabel(
+                label: 'Tender Name',
+                child: TextField(controller: _tenderNameController),
+              ),
+            ),
           ],
         ),
 
@@ -451,15 +556,30 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: FormRowLabel(label: 'FD Number', child: TextField(controller: _fdNumberController))),
+            Expanded(
+              child: FormRowLabel(
+                label: 'FD Number',
+                child: TextField(controller: _fdNumberController),
+              ),
+            ),
             const SizedBox(width: 10),
-            Expanded(child: FormRowLabel(label: 'Bank Name', child: TextField(controller: _fdBankNameController))),
+            Expanded(
+              child: FormRowLabel(
+                label: 'Bank Name',
+                child: TextField(controller: _fdBankNameController),
+              ),
+            ),
           ],
         ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: FormRowLabel(label: 'Branch Name', child: TextField(controller: _fdBranchNameController))),
+            Expanded(
+              child: FormRowLabel(
+                label: 'Branch Name',
+                child: TextField(controller: _fdBranchNameController),
+              ),
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: FormRowLabel(
@@ -474,7 +594,9 @@ class _WorkOrderFormState extends ConsumerState<_WorkOrderForm> {
           children: [
             Expanded(child: _dateButton('FD Issue Date', _fdIssueDate, (d) => setState(() => _fdIssueDate = d))),
             const SizedBox(width: 10),
-            Expanded(child: _dateButton('FD Maturity Date', _fdMaturityDate, (d) => setState(() => _fdMaturityDate = d))),
+            Expanded(
+              child: _dateButton('FD Maturity Date', _fdMaturityDate, (d) => setState(() => _fdMaturityDate = d)),
+            ),
           ],
         ),
         Row(

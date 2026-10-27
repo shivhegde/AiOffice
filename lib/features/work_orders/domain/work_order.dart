@@ -14,7 +14,9 @@ class WorkOrder {
     required this.workOrderNumber,
     required this.year,
     required this.workOrderDate,
+    this.workOrderReceivedDate,
     required this.departmentName,
+    this.subDepartmentName = '',
     required this.contractType,
     required this.startDate,
     this.endDate,
@@ -53,10 +55,15 @@ class WorkOrder {
   });
 
   final String id;
+
+  /// Entered by the user (the number on the department's work order) —
+  /// not auto-generated.
   final String workOrderNumber;
   final int year;
   final DateTime workOrderDate;
+  final DateTime? workOrderReceivedDate;
   final String departmentName;
+  final String subDepartmentName;
   final ContractType contractType;
   final DateTime startDate;
   final DateTime? endDate;
@@ -135,7 +142,9 @@ class WorkOrder {
       workOrderNumber: data['workOrderNumber'] as String? ?? '',
       year: (data['year'] as num?)?.toInt() ?? DateTime.now().year,
       workOrderDate: (data['workOrderDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      workOrderReceivedDate: (data['workOrderReceivedDate'] as Timestamp?)?.toDate(),
       departmentName: data['departmentName'] as String? ?? '',
+      subDepartmentName: data['subDepartmentName'] as String? ?? '',
       contractType: ContractType.fromWireValue(data['contractType'] as String?),
       startDate: (data['startDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       endDate: (data['endDate'] as Timestamp?)?.toDate(),
@@ -186,7 +195,9 @@ class WorkOrder {
       'workOrderNumber': workOrderNumber,
       'year': year,
       'workOrderDate': Timestamp.fromDate(workOrderDate),
+      'workOrderReceivedDate': workOrderReceivedDate != null ? Timestamp.fromDate(workOrderReceivedDate!) : null,
       'departmentName': departmentName,
+      'subDepartmentName': subDepartmentName,
       'contractType': contractType.wireValue,
       'startDate': Timestamp.fromDate(startDate),
       if (endDate != null) 'endDate': Timestamp.fromDate(endDate!),
