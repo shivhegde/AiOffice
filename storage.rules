@@ -48,6 +48,14 @@ service firebase.storage {
       allow delete: if signedIn();
     }
 
+    match /tenders/{year}/{docId}/{slot}/{fileName} {
+      allow read: if signedIn();
+      allow write: if signedIn()
+                   && request.resource.size < 20 * 1024 * 1024
+                   && request.resource.contentType.matches('application/pdf|image/.*');
+      allow delete: if signedIn();
+    }
+
     match /employees/{year}/{docId}/{slot}/{fileName} {
       allow read: if signedIn();
       allow write: if signedIn()

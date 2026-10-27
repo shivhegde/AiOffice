@@ -1,6 +1,10 @@
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../shared/widgets/document_actions.dart';
 import '../../../shared/widgets/slideover_panel.dart';
 import '../../users/application/user_providers.dart';
 import '../application/tender_providers.dart';
@@ -32,10 +36,16 @@ class _TenderForm extends ConsumerStatefulWidget {
 }
 
 class _TenderFormState extends ConsumerState<_TenderForm> {
+  final _tenderNumberController = TextEditingController();
   final _tenderNameController = TextEditingController();
   final _departmentController = TextEditingController();
+  final _subDepartmentController = TextEditingController();
+  final _bidValidityDaysController = TextEditingController();
   final _emdAmountController = TextEditingController();
+  final _emdPaymentBankController = TextEditingController();
   final _utrController = TextEditingController();
+  final _refundToAccountController = TextEditingController();
+  final _refundUtrController = TextEditingController();
   final _deptContactPersonController = TextEditingController();
   final _deptContactMobileController = TextEditingController();
   final _deptContactEmailController = TextEditingController();
@@ -44,11 +54,16 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
 
   late DateTime _publishDate;
   late DateTime _submissionDate;
+  DateTime? _emdPaymentDate;
   DateTime? _emdValidUntil;
+  DateTime? _refundedAt;
   TenderCategory _category = TenderCategory.work;
   TenderStatus _status = TenderStatus.active;
   EmdType _emdType = EmdType.dd;
   RefundStatus _refundStatus = RefundStatus.pending;
+
+  ({Uint8List bytes, String name, String contentType})? _pendingPaymentProof;
+  ({Uint8List bytes, String name, String contentType})? _pendingRefundProof;
 
   bool _submitting = false;
   bool get _isEditing => widget.existing != null;
@@ -57,10 +72,16 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
   void initState() {
     super.initState();
     final existing = widget.existing;
+    _tenderNumberController.text = existing?.tenderNumber ?? '';
     _tenderNameController.text = existing?.tenderName ?? '';
     _departmentController.text = existing?.departmentName ?? '';
+    _subDepartmentController.text = existing?.subDepartmentName ?? '';
+    _bidValidityDaysController.text = existing?.bidValidityDays?.toString() ?? '';
     _emdAmountController.text = existing != null ? existing.emdAmount.toStringAsFixed(0) : '';
+    _emdPaymentBankController.text = existing?.emdPaymentBank ?? '';
     _utrController.text = existing?.utrNumber ?? '';
+    _refundToAccountController.text = existing?.refundToAccount ?? '';
+    _refundUtrController.text = existing?.refundUtrNumber ?? '';
     _deptContactPersonController.text = existing?.deptContactPerson ?? '';
     _deptContactMobileController.text = existing?.deptContactMobile ?? '';
     _deptContactEmailController.text = existing?.deptContactEmail ?? '';
@@ -68,7 +89,9 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
     _remarksController.text = existing?.remarks ?? '';
     _publishDate = existing?.publishDate ?? DateTime.now();
     _submissionDate = existing?.submissionDate ?? DateTime.now();
+    _emdPaymentDate = existing?.emdPaymentDate;
     _emdValidUntil = existing?.emdValidUntil;
+    _refundedAt = existing?.refundedAt;
     _category = existing?.category ?? TenderCategory.work;
     _status = existing?.status ?? TenderStatus.active;
     _emdType = existing?.emdType ?? EmdType.dd;
@@ -77,10 +100,16 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
 
   @override
   void dispose() {
+    _tenderNumberController.dispose();
     _tenderNameController.dispose();
     _departmentController.dispose();
+    _subDepartmentController.dispose();
+    _bidValidityDaysController.dispose();
     _emdAmountController.dispose();
+    _emdPaymentBankController.dispose();
     _utrController.dispose();
+    _refundToAccountController.dispose();
+    _refundUtrController.dispose();
     _deptContactPersonController.dispose();
     _deptContactMobileController.dispose();
     _deptContactEmailController.dispose();
@@ -96,10 +125,23 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
   String _fmt(DateTime d) => '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
   Future<void> _submit() async {
-    if (_tenderNameController.text.trim().isEmpty || _departmentController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Tender Name and Department are required.')),
-      );
+    final tenderNumber = _tenderNumberController.text.trim();
+    if (tenderNumber.isEmpty ||
+        _tenderNameController.text.trim().isEmpty ||
+        _departmentController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Tender Number, Tender Description and Department are required.')));
+      return;
+    }
+    final allTenders = ref.read(tenderListProvider).value ?? const <Tender>[];
+    final duplicate = allTenders.any(
+      (t) => t.id != widget.existing?.id && t.tenderNumber.trim().toLowerCase() == tenderNumber.toLowerCase(),
+    );
+    if (duplicate) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Tender Number $tenderNumber is already used by another tender.')));
       return;
     }
 
@@ -111,20 +153,30 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
     try {
       final draft = Tender(
         id: widget.existing?.id ?? '',
-        tenderNumber: widget.existing?.tenderNumber ?? '',
-        year: _submissionDate.year,
+        tenderNumber: tenderNumber,
+        year: widget.existing?.year ?? _submissionDate.year,
         tenderName: _tenderNameController.text.trim(),
         departmentName: _departmentController.text.trim(),
+        subDepartmentName: _subDepartmentController.text.trim(),
         category: _category,
         status: _status,
         publishDate: _publishDate,
         submissionDate: _submissionDate,
+        bidValidityDays: int.tryParse(_bidValidityDaysController.text.trim()),
         emdAmount: double.tryParse(_emdAmountController.text.trim()) ?? 0,
         emdType: _emdType,
+        emdPaymentDate: _emdPaymentDate,
+        emdPaymentBank: _emdPaymentBankController.text.trim(),
         utrNumber: _utrController.text.trim(),
+        paymentProofStoragePath: widget.existing?.paymentProofStoragePath,
+        paymentProofFileName: widget.existing?.paymentProofFileName,
+        refundProofStoragePath: widget.existing?.refundProofStoragePath,
+        refundProofFileName: widget.existing?.refundProofFileName,
         emdValidUntil: _emdValidUntil,
         refundStatus: _refundStatus,
-        refundedAt: _refundStatus == RefundStatus.refunded ? (widget.existing?.refundedAt ?? DateTime.now()) : null,
+        refundedAt: _refundedAt ?? (_refundStatus == RefundStatus.refunded ? DateTime.now() : null),
+        refundToAccount: _refundToAccountController.text.trim(),
+        refundUtrNumber: _refundUtrController.text.trim(),
         deptContactPerson: _deptContactPersonController.text.trim(),
         deptContactMobile: _deptContactMobileController.text.trim(),
         deptContactEmail: _deptContactEmailController.text.trim(),
@@ -137,9 +189,21 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
 
       final repo = ref.read(tenderRepositoryProvider);
       if (_isEditing) {
-        await repo.update(tender: draft, actorUid: actorUid, actorName: actorName);
+        await repo.update(
+          tender: draft,
+          actorUid: actorUid,
+          actorName: actorName,
+          paymentProofFile: _pendingPaymentProof,
+          refundProofFile: _pendingRefundProof,
+        );
       } else {
-        await repo.create(draft: draft, actorUid: actorUid, actorName: actorName);
+        await repo.create(
+          draft: draft,
+          actorUid: actorUid,
+          actorName: actorName,
+          paymentProofFile: _pendingPaymentProof,
+          refundProofFile: _pendingRefundProof,
+        );
       }
 
       if (mounted) {
@@ -168,20 +232,95 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
     );
   }
 
+  /// Distinct non-empty values already entered on other tenders, for the
+  /// Department / Sub-Department pulldowns.
+  List<String> _previousValues(String Function(Tender t) pick) {
+    final all = ref.watch(tenderListProvider).value ?? const <Tender>[];
+    final values = {
+      for (final t in all)
+        if (pick(t).trim().isNotEmpty) pick(t).trim(),
+    }.toList();
+    return values..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  }
+
+  /// Pulldown of previously entered values that still accepts free text —
+  /// same pattern as the Work Order Department field.
+  Widget _pickOrTypeField(TextEditingController controller, List<String> options) {
+    return DropdownMenu<String>(
+      controller: controller,
+      expandedInsets: EdgeInsets.zero,
+      enableFilter: true,
+      requestFocusOnTap: true,
+      dropdownMenuEntries: [for (final o in options) DropdownMenuEntry(value: o, label: o)],
+      onSelected: (value) {
+        if (value != null) controller.text = value;
+      },
+    );
+  }
+
+  Future<({Uint8List bytes, String name, String contentType})?> _pickFile() async {
+    final file = await FilePicker.pickFile(type: FileType.custom, allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg']);
+    if (file == null) return null;
+    final bytes = await file.readAsBytes();
+    final extension = file.name.contains('.') ? file.name.split('.').last.toLowerCase() : '';
+    return (bytes: bytes, name: file.name, contentType: extension == 'pdf' ? 'application/pdf' : 'image/$extension');
+  }
+
+  Widget _proofField({
+    required String label,
+    required ({Uint8List bytes, String name, String contentType})? pending,
+    required String? existingName,
+    required String? existingPath,
+    required ValueChanged<({Uint8List bytes, String name, String contentType})> onPicked,
+  }) {
+    return FormRowLabel(
+      label: label,
+      child: Row(
+        children: [
+          Expanded(
+            child: InkWell(
+              onTap: () async {
+                final file = await _pickFile();
+                if (file != null && mounted) setState(() => onPicked(file));
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  pending != null
+                      ? 'Attached: ${pending.name}'
+                      : (existingName != null ? 'On file: $existingName. Tap to replace.' : 'Tap to upload'),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
+          if (pending == null && existingPath != null && existingName != null) ...[
+            const SizedBox(width: 8),
+            DocumentActionIcons(storagePath: existingPath, fileName: existingName, label: label),
+          ],
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_isEditing)
-          FormRowLabel(
-            label: 'Tender Indent Number',
-            child: TextField(
-              controller: TextEditingController(text: widget.existing!.tenderNumber),
-              enabled: false,
-            ),
-          ),
-        FormRowLabel(label: 'Tender Name', child: TextField(controller: _tenderNameController)),
+        FormRowLabel(
+          label: 'Tender Number',
+          child: TextField(controller: _tenderNumberController),
+        ),
+        FormRowLabel(
+          label: 'Tender Description',
+          child: TextField(controller: _tenderNameController),
+        ),
         FormRowLabel(
           label: 'Tender Status',
           child: DropdownButtonFormField<TenderStatus>(
@@ -194,32 +333,47 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: FormRowLabel(label: 'Department', child: TextField(controller: _departmentController))),
+            Expanded(
+              child: FormRowLabel(
+                label: 'Department',
+                child: _pickOrTypeField(_departmentController, _previousValues((t) => t.departmentName)),
+              ),
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: FormRowLabel(
-                label: 'Category',
-                child: DropdownButtonFormField<TenderCategory>(
-                  initialValue: _category,
-                  isExpanded: true,
-                  items: [for (final c in TenderCategory.values) DropdownMenuItem(value: c, child: Text(c.label))],
-                  onChanged: (v) => setState(() => _category = v ?? TenderCategory.work),
-                ),
+                label: 'Sub-Department',
+                child: _pickOrTypeField(_subDepartmentController, _previousValues((t) => t.subDepartmentName)),
               ),
             ),
           ],
         ),
+        FormRowLabel(
+          label: 'Category',
+          child: DropdownButtonFormField<TenderCategory>(
+            initialValue: _category,
+            isExpanded: true,
+            items: [for (final c in TenderCategory.values) DropdownMenuItem(value: c, child: Text(c.label))],
+            onChanged: (v) => setState(() => _category = v ?? TenderCategory.work),
+          ),
+        ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: _dateField('Publish Date', _publishDate, (d) => setState(() => _publishDate = d)),
-            ),
+            Expanded(child: _dateField('Publish Date', _publishDate, (d) => setState(() => _publishDate = d))),
             const SizedBox(width: 10),
             Expanded(
-              child: _dateField('Submission Date', _submissionDate, (d) => setState(() => _submissionDate = d)),
+              child: _dateField('Bid Submission Date', _submissionDate, (d) => setState(() => _submissionDate = d)),
             ),
           ],
+        ),
+        FormRowLabel(
+          label: 'Bid Validity (Days)',
+          child: TextField(controller: _bidValidityDaysController, keyboardType: TextInputType.number),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 8),
+          child: Text('EMD Payment Details', style: Theme.of(context).textTheme.titleMedium),
         ),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,7 +398,44 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
             ),
           ],
         ),
-        FormRowLabel(label: 'UTR / URN Number', child: TextField(controller: _utrController)),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: FormRowLabel(
+                label: 'EMD Payment Date',
+                child: OutlinedButton(
+                  onPressed: () async {
+                    final picked = await _pickDate(_emdPaymentDate ?? DateTime.now());
+                    if (picked != null) setState(() => _emdPaymentDate = picked);
+                  },
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(_emdPaymentDate != null ? _fmt(_emdPaymentDate!) : 'Not set'),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FormRowLabel(
+                label: 'EMD Payment Bank',
+                child: TextField(controller: _emdPaymentBankController),
+              ),
+            ),
+          ],
+        ),
+        FormRowLabel(
+          label: 'UTR / Reference Number',
+          child: TextField(controller: _utrController),
+        ),
+        _proofField(
+          label: 'Payment Proof',
+          pending: _pendingPaymentProof,
+          existingName: widget.existing?.paymentProofFileName,
+          existingPath: widget.existing?.paymentProofStoragePath,
+          onPicked: (f) => _pendingPaymentProof = f,
+        ),
         FormRowLabel(
           label: 'EMD Valid Until (optional)',
           child: OutlinedButton(
@@ -258,6 +449,10 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
             ),
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 8),
+          child: Text('EMD Refund Details', style: Theme.of(context).textTheme.titleMedium),
+        ),
         FormRowLabel(
           label: 'Refund Status',
           child: DropdownButtonFormField<RefundStatus>(
@@ -267,23 +462,78 @@ class _TenderFormState extends ConsumerState<_TenderForm> {
             onChanged: (v) => setState(() => _refundStatus = v ?? RefundStatus.pending),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.only(top: 4, bottom: 8),
-          child: Text('Department Contact', style: Theme.of(context).textTheme.titleMedium),
+        FormRowLabel(
+          label: 'EMD Refund To (Account)',
+          child: _pickOrTypeField(_refundToAccountController, _previousValues((t) => t.refundToAccount)),
         ),
-        FormRowLabel(label: 'Contact Person', child: TextField(controller: _deptContactPersonController)),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: FormRowLabel(label: 'Mobile Number', child: TextField(controller: _deptContactMobileController)),
+              child: FormRowLabel(
+                label: 'EMD Refund Date',
+                child: OutlinedButton(
+                  onPressed: () async {
+                    final picked = await _pickDate(_refundedAt ?? DateTime.now());
+                    if (picked != null) setState(() => _refundedAt = picked);
+                  },
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(_refundedAt != null ? _fmt(_refundedAt!) : 'Not set'),
+                  ),
+                ),
+              ),
             ),
             const SizedBox(width: 10),
-            Expanded(child: FormRowLabel(label: 'Email ID', child: TextField(controller: _deptContactEmailController))),
+            Expanded(
+              child: FormRowLabel(
+                label: 'Refund Bank UTR Number',
+                child: TextField(controller: _refundUtrController),
+              ),
+            ),
           ],
         ),
-        FormRowLabel(label: 'Office Address', child: TextField(controller: _deptOfficeAddressController, maxLines: 2)),
-        FormRowLabel(label: 'Remarks', child: TextField(controller: _remarksController, maxLines: 3)),
+        _proofField(
+          label: 'Refund Proof',
+          pending: _pendingRefundProof,
+          existingName: widget.existing?.refundProofFileName,
+          existingPath: widget.existing?.refundProofStoragePath,
+          onPicked: (f) => _pendingRefundProof = f,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 8),
+          child: Text('Department Contact', style: Theme.of(context).textTheme.titleMedium),
+        ),
+        FormRowLabel(
+          label: 'Contact Person',
+          child: TextField(controller: _deptContactPersonController),
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: FormRowLabel(
+                label: 'Mobile Number',
+                child: TextField(controller: _deptContactMobileController),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FormRowLabel(
+                label: 'Email ID',
+                child: TextField(controller: _deptContactEmailController),
+              ),
+            ),
+          ],
+        ),
+        FormRowLabel(
+          label: 'Office Address',
+          child: TextField(controller: _deptOfficeAddressController, maxLines: 2),
+        ),
+        FormRowLabel(
+          label: 'Remarks',
+          child: TextField(controller: _remarksController, maxLines: 3),
+        ),
         const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,

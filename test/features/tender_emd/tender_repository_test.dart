@@ -1,14 +1,22 @@
+import 'package:aioffice/core/services/storage_upload_service.dart';
 import 'package:aioffice/features/audit/data/audit_log_repository.dart';
 import 'package:aioffice/features/tender_emd/data/tender_repository.dart';
 import 'package:aioffice/features/tender_emd/domain/tender.dart';
 import 'package:aioffice/features/tender_emd/domain/tender_enums.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mocktail/mocktail.dart';
 
-Tender _draft({DateTime? submissionDate, RefundStatus refundStatus = RefundStatus.pending}) {
+class _MockStorageUploadService extends Mock implements StorageUploadService {}
+
+Tender _draft({
+  String tenderNumber = 'BWSSB/2026/T-118',
+  DateTime? submissionDate,
+  RefundStatus refundStatus = RefundStatus.pending,
+}) {
   return Tender(
     id: '',
-    tenderNumber: '',
+    tenderNumber: tenderNumber,
     year: (submissionDate ?? DateTime(2026, 7, 2)).year,
     tenderName: 'Security Services — District Hospital',
     departmentName: 'BWSSB',
@@ -35,19 +43,22 @@ void main() {
 
   setUp(() {
     firestore = FakeFirebaseFirestore();
-    repository = TenderRepository(firestore: firestore, auditLog: AuditLogRepository(firestore));
+    repository = TenderRepository(
+      firestore: firestore,
+      storage: _MockStorageUploadService(),
+      auditLog: AuditLogRepository(firestore),
+    );
   });
 
-  test('first tender of a year is numbered TND/YYYY/0001', () async {
-    final saved = await repository.create(draft: _draft(), actorUid: 'actor-1', actorName: 'Actor One');
-    expect(saved.tenderNumber, 'TND/2026/0001');
-  });
-
-  test('sequence increments within a year', () async {
-    final first = await repository.create(draft: _draft(), actorUid: 'actor-1', actorName: 'Actor One');
-    final second = await repository.create(draft: _draft(), actorUid: 'actor-1', actorName: 'Actor One');
-    expect(first.tenderNumber, 'TND/2026/0001');
-    expect(second.tenderNumber, 'TND/2026/0002');
+  test('create keeps the tender number the user entered', () async {
+    final saved = await repository.create(
+      draft: _draft(tenderNumber: '  KPWD/EE/2026/77 '),
+      actorUid: 'actor-1',
+      actorName: 'Actor One',
+    );
+    expect(saved.tenderNumber, 'KPWD/EE/2026/77');
+    final stored = await firestore.collection('tenders').doc(saved.id).get();
+    expect(stored.data()!['tenderNumber'], 'KPWD/EE/2026/77');
   });
 
   test('create writes an audit_log entry and delete adds another', () async {

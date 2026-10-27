@@ -25,11 +25,10 @@ class TenderDataTable extends ConsumerWidget {
       columns: const [
         DataColumn(label: Text('S.No.')),
         DataColumn(label: Text('Tender No.')),
-        DataColumn(label: Text('Tender Name')),
+        DataColumn(label: Text('Tender Description')),
         DataColumn(label: Text('Department')),
         DataColumn(label: Text('Category')),
         DataColumn(label: Text('EMD Amount')),
-        DataColumn(label: Text('Type')),
         DataColumn(label: Text('Publish Date')),
         DataColumn(label: Text('Submitted')),
         DataColumn(label: Text('Tender Status')),
@@ -46,7 +45,6 @@ class TenderDataTable extends ConsumerWidget {
               DataCell(Text(tender.departmentName)),
               DataCell(StatusChip(label: tender.category.label, variant: StatusChipVariant.neutral)),
               DataCell(Text(formatCurrencyFull(tender.emdAmount))),
-              DataCell(Text(tender.emdType.label)),
               DataCell(Text(formatDisplayDate(tender.publishDate))),
               DataCell(Text(formatDisplayDate(tender.submissionDate))),
               DataCell(

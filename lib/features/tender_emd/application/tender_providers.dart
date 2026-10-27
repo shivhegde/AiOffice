@@ -2,12 +2,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/firebase_providers.dart';
 import '../../audit/presentation/audit_log_screen.dart';
+import '../../inward_outward/application/io_providers.dart' show storageUploadServiceProvider;
 import '../data/tender_repository.dart';
 import '../domain/tender.dart';
 import '../domain/tender_enums.dart';
 
 final tenderRepositoryProvider = Provider<TenderRepository>((ref) {
-  return TenderRepository(firestore: ref.watch(firestoreProvider), auditLog: ref.watch(auditLogRepositoryProvider));
+  return TenderRepository(
+    firestore: ref.watch(firestoreProvider),
+    storage: ref.watch(storageUploadServiceProvider),
+    auditLog: ref.watch(auditLogRepositoryProvider),
+  );
 });
 
 final tenderListProvider = StreamProvider<List<Tender>>((ref) {

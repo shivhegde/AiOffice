@@ -88,7 +88,7 @@ class _ReportBodyState extends State<_ReportBody> {
 
   static const _headers = [
     'Tender No.',
-    'Tender Name',
+    'Tender Description',
     'Department',
     'EMD Amount',
     'Type',
