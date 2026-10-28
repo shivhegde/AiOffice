@@ -51,6 +51,8 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
   final _panController = TextEditingController();
   final _departmentController = TextEditingController();
   final _subDepartmentController = TextEditingController();
+  final _roleController = TextEditingController();
+  final _siteController = TextEditingController();
   final _designationController = TextEditingController();
   final _branchLocationController = TextEditingController();
   final _remarksController = TextEditingController();
@@ -95,6 +97,8 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
     _panController.text = e?.panNumber ?? '';
     _departmentController.text = e?.department ?? '';
     _subDepartmentController.text = e?.subDepartment ?? '';
+    _roleController.text = e?.role ?? '';
+    _siteController.text = e?.site ?? '';
     _designationController.text = e?.designation ?? '';
     _branchLocationController.text = e?.branchLocation ?? '';
     _remarksController.text = e?.remarks ?? '';
@@ -130,6 +134,8 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
     _panController.dispose();
     _departmentController.dispose();
     _subDepartmentController.dispose();
+    _roleController.dispose();
+    _siteController.dispose();
     _designationController.dispose();
     _branchLocationController.dispose();
     _remarksController.dispose();
@@ -251,6 +257,8 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
         joiningDate: _joiningDate,
         department: _departmentController.text.trim(),
         subDepartment: _subDepartmentController.text.trim(),
+        role: _roleController.text.trim(),
+        site: _siteController.text.trim(),
         designation: _designationController.text.trim(),
         employeeType: _employeeType,
         branchLocation: _branchLocationController.text.trim(),
@@ -314,14 +322,17 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
   }
 
   /// Distinct non-empty values already entered on other employees, for
-  /// the Department / Sub-Department pulldowns.
-  List<String> _previousValues(String Function(Employee e) pick) {
+  /// the Department / Sub-Department / Role / Site pulldowns. [defaults] are
+  /// always offered, unless the same value (ignoring case) is already used.
+  List<String> _previousValues(String Function(Employee e) pick, {List<String> defaults = const []}) {
     final all = ref.watch(employeeListProvider).value ?? const <Employee>[];
     final values = {
       for (final e in all)
         if (pick(e).trim().isNotEmpty) pick(e).trim(),
-    }.toList();
-    return values..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    };
+    final used = {for (final v in values) v.toLowerCase()};
+    values.addAll(defaults.where((d) => !used.contains(d.toLowerCase())));
+    return values.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
   }
 
   /// Pulldown of previously entered values that still accepts free text —
@@ -531,8 +542,29 @@ class _EmployeeFormState extends ConsumerState<_EmployeeForm> {
           children: [
             Expanded(
               child: FormRowLabel(
+                label: 'Role',
+                child: _pickOrTypeField(
+                  _roleController,
+                  _previousValues((e) => e.role, defaults: const ['Guard', 'Housekeeping']),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FormRowLabel(
                 label: 'Branch / Office Location',
                 child: TextField(controller: _branchLocationController),
+              ),
+            ),
+          ],
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: FormRowLabel(
+                label: 'Site',
+                child: _pickOrTypeField(_siteController, _previousValues((e) => e.site)),
               ),
             ),
             const SizedBox(width: 10),

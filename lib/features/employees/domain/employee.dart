@@ -31,6 +31,8 @@ class Employee {
     required this.joiningDate,
     required this.department,
     this.subDepartment = '',
+    this.role = '',
+    this.site = '',
     required this.designation,
     required this.employeeType,
     this.branchLocation = '',
@@ -84,6 +86,8 @@ class Employee {
   final DateTime joiningDate;
   final String department;
   final String subDepartment;
+  final String role;
+  final String site;
   final String designation;
   final EmployeeType employeeType;
   final String branchLocation;
@@ -149,6 +153,8 @@ class Employee {
       joiningDate: (data['joiningDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       department: data['department'] as String? ?? '',
       subDepartment: data['subDepartment'] as String? ?? '',
+      role: data['role'] as String? ?? '',
+      site: data['site'] as String? ?? '',
       designation: data['designation'] as String? ?? '',
       employeeType: EmployeeType.fromWireValue(data['employeeType'] as String?),
       branchLocation: data['branchLocation'] as String? ?? '',
@@ -207,6 +213,8 @@ class Employee {
       'joiningDate': Timestamp.fromDate(joiningDate),
       'department': department,
       'subDepartment': subDepartment,
+      'role': role,
+      'site': site,
       'designation': designation,
       'employeeType': employeeType.wireValue,
       'branchLocation': branchLocation,
