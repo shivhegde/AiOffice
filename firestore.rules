@@ -78,6 +78,14 @@ service cloud.firestore {
       allow update, delete: if canManageDocuments();
     }
 
+    // Salary Payment Register — unlike the employee records themselves,
+    // salary payments are not readable by general users.
+    match /salary_payments/{docId} {
+      allow read: if canManageDocuments();
+      allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if canManageDocuments();
+    }
+
     match /candidates/{docId} {
       allow read: if isKnownUser();
       allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;

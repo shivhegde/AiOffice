@@ -11,6 +11,7 @@ class FirestorePaths {
   static const tenders = 'tenders';
   static const workOrders = 'work_orders';
   static const employees = 'employees';
+  static const salaryPayments = 'salary_payments';
   static const candidates = 'candidates';
   static const inventoryItems = 'inventory_items';
   static const inventoryMovements = 'inventory_movements';

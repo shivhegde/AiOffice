@@ -8,6 +8,7 @@ import '../../../../shared/widgets/role_gate.dart';
 import '../../../../shared/widgets/status_chip.dart';
 import '../../../users/application/user_providers.dart';
 import '../../application/employee_providers.dart';
+import '../../application/salary_providers.dart';
 import '../../domain/employee.dart';
 import '../../domain/employee_enums.dart';
 import '../employee_form_slideover.dart';
@@ -84,6 +85,14 @@ class _RowActions extends ConsumerWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          IconButton(
+            icon: const Icon(Icons.payments_outlined, size: 17),
+            tooltip: 'Salary details',
+            onPressed: () {
+              ref.read(salaryFilterProvider.notifier).state = SalaryFilterState.forEmployee(employee.id);
+              ref.read(employeesTabProvider.notifier).state = 1;
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.edit_outlined, size: 17),
             tooltip: 'Edit',
