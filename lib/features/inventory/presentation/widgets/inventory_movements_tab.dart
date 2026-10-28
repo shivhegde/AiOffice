@@ -51,7 +51,10 @@ class InventoryMovementsTab extends ConsumerWidget {
                             m.type.label,
                             itemName(m),
                             '${m.qty}',
-                            m.site.isEmpty ? '—' : m.site,
+                            _orDash(m.site),
+                            _orDash(m.employeeId),
+                            _orDash(m.employeeName),
+                            _orDash(m.employeeRole),
                             m.note.isEmpty ? '—' : m.note,
                             m.createdByName,
                           ],
@@ -87,7 +90,10 @@ class InventoryMovementsTab extends ConsumerWidget {
                             DataCell(StatusChip(label: m.type.label, variant: _variantOf(m.type))),
                             DataCell(Text(itemName(m))),
                             DataCell(Text('${m.qty}')),
-                            DataCell(Text(m.site.isEmpty ? '—' : m.site)),
+                            DataCell(Text(_orDash(m.site))),
+                            DataCell(Text(_orDash(m.employeeId))),
+                            DataCell(Text(_orDash(m.employeeName))),
+                            DataCell(Text(_orDash(m.employeeRole))),
                             DataCell(
                               SizedBox(
                                 width: 200,
@@ -113,7 +119,21 @@ class InventoryMovementsTab extends ConsumerWidget {
   }
 }
 
-const _headers = ['S.No.', 'Date', 'Type', 'Item', 'Qty', 'Site', 'Note', 'Recorded By'];
+const _headers = [
+  'S.No.',
+  'Date',
+  'Type',
+  'Item',
+  'Qty',
+  'Site',
+  'Employee ID',
+  'Employee Name',
+  'Role',
+  'Note',
+  'Recorded By',
+];
+
+String _orDash(String value) => value.isEmpty ? '—' : value;
 
 StatusChipVariant _variantOf(MovementType type) => switch (type) {
   MovementType.received => StatusChipVariant.good,

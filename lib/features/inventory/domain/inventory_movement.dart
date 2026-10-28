@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum MovementType {
-  received('received', 'Received'),
-  issueToSite('issue_to_site', 'Issue to site'),
-  returnFromSite('return_from_site', 'Return from site'),
+  received('received', 'Received in Store'),
+  issueToSite('issue_to_site', 'Issue to Employee'),
+  returnFromSite('return_from_site', 'Return from Employee'),
   damaged('damaged', 'Damaged'),
   lost('lost', 'Lost');
 
@@ -35,6 +35,10 @@ class InventoryMovement {
     required this.type,
     required this.qty,
     this.site = '',
+    this.employeeDocId = '',
+    this.employeeId = '',
+    this.employeeName = '',
+    this.employeeRole = '',
     this.note = '',
     required this.createdBy,
     required this.createdByName,
@@ -48,8 +52,20 @@ class InventoryMovement {
   final MovementType type;
   final int qty;
 
-  /// Site / guard name; empty for store-side movements.
+  /// Site the stock is held at (taken from the employee's Site); empty
+  /// for store-side movements. Stock at sites is tracked by this name.
   final String site;
+
+  /// Employee the stock was issued to / returned by, copied in at save
+  /// time. Empty for store-side movements and for entries recorded before
+  /// movements were linked to employees.
+  final String employeeDocId;
+  final String employeeId;
+  final String employeeName;
+
+  /// The employee's Role at the time of the movement.
+  final String employeeRole;
+
   final String note;
 
   final String createdBy;
@@ -65,6 +81,10 @@ class InventoryMovement {
       type: MovementType.fromWireValue(data['type'] as String?),
       qty: (data['qty'] as num?)?.toInt() ?? 0,
       site: data['site'] as String? ?? '',
+      employeeDocId: data['employeeDocId'] as String? ?? '',
+      employeeId: data['employeeId'] as String? ?? '',
+      employeeName: data['employeeName'] as String? ?? '',
+      employeeRole: data['employeeRole'] as String? ?? '',
       note: data['note'] as String? ?? '',
       createdBy: data['createdBy'] as String? ?? '',
       createdByName: data['createdByName'] as String? ?? '',
@@ -80,6 +100,10 @@ class InventoryMovement {
       'type': type.wireValue,
       'qty': qty,
       'site': site,
+      'employeeDocId': employeeDocId,
+      'employeeId': employeeId,
+      'employeeName': employeeName,
+      'employeeRole': employeeRole,
       'note': note,
       'createdBy': createdBy,
       'createdByName': createdByName,

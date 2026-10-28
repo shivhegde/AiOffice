@@ -14,19 +14,63 @@ InventoryItem _item(String id, {int opening = 0, int reorder = 5, int target = 2
   createdByName: 'U',
 );
 
-InventoryMovement _move(String itemId, MovementType type, int qty, {String site = ''}) => InventoryMovement(
-  id: '',
-  itemId: itemId,
-  itemLabel: 'Shirt (M)',
-  date: DateTime(2026, 10, 20),
-  type: type,
-  qty: qty,
-  site: site,
-  createdBy: 'u',
-  createdByName: 'U',
-);
+InventoryMovement _move(String itemId, MovementType type, int qty, {String site = '', String employee = ''}) =>
+    InventoryMovement(
+      id: '',
+      itemId: itemId,
+      itemLabel: 'Shirt (M)',
+      date: DateTime(2026, 10, 20),
+      type: type,
+      qty: qty,
+      site: site,
+      employeeDocId: employee,
+      createdBy: 'u',
+      createdByName: 'U',
+    );
 
 void main() {
+  test('an employee with no site holds and writes off their own stock', () {
+    final stock = computeStock(
+      [_item('a', opening: 10)],
+      [
+        _move('a', MovementType.issueToSite, 3, employee: 'ravi'),
+        _move('a', MovementType.damaged, 1, employee: 'ravi'),
+      ],
+    )['a']!;
+    expect(stock.inStore, 7);
+    expect(stock.withEmployee, {'ravi': 2});
+    expect(stock.atSite, {'': 2});
+    expect(stock.damaged, 1);
+    expect(stock.availableFor(MovementType.lost, '', employeeDocId: 'ravi'), 2);
+  });
+
+  test('tracks stock per employee alongside their site', () {
+    final stock = computeStock(
+      [_item('a', opening: 10)],
+      [
+        _move('a', MovementType.issueToSite, 2, site: 'Site A', employee: 'ravi'),
+        _move('a', MovementType.issueToSite, 3, site: 'Site A', employee: 'mohan'),
+        _move('a', MovementType.lost, 1, site: 'Site A', employee: 'mohan'),
+        _move('a', MovementType.returnFromSite, 1, site: 'Site A', employee: 'ravi'),
+        // Recorded before movements were linked to employees.
+        _move('a', MovementType.issueToSite, 4, site: 'Site A'),
+      ],
+    )['a']!;
+
+    expect(stock.withEmployee, {'ravi': 1, 'mohan': 2});
+    expect(stock.atSite, {'Site A': 2 + 3 - 1 - 1 + 4});
+    expect(stock.inStore, 10 - 2 - 3 + 1 - 4);
+    expect(stock.lost, 1);
+
+    // Damaged / Lost / Return with an employee draw on that employee's own
+    // stock, not the site total.
+    expect(stock.availableFor(MovementType.damaged, 'Site A', employeeDocId: 'ravi'), 1);
+    expect(stock.availableFor(MovementType.lost, 'Site A', employeeDocId: 'mohan'), 2);
+    expect(stock.availableFor(MovementType.returnFromSite, 'Site A', employeeDocId: 'nobody'), 0);
+    expect(stock.availableFor(MovementType.damaged, '', employeeDocId: ''), 2);
+    expect(stock.availableFor(MovementType.issueToSite, 'Site A', employeeDocId: 'ravi'), 2);
+  });
+
   test('replays receipts, issues, returns and write-offs', () {
     final stock = computeStock(
       [_item('a', opening: 10)],
@@ -49,10 +93,7 @@ void main() {
   });
 
   test('flags reorder at or below the level and orders up to target', () {
-    final stock = computeStock(
-      [_item('a', opening: 5), _item('b', opening: 6)],
-      const [],
-    );
+    final stock = computeStock([_item('a', opening: 5), _item('b', opening: 6)], const []);
     expect(stock['a']!.needsReorder, isTrue);
     expect(stock['a']!.orderQty, 15);
     expect(stock['b']!.needsReorder, isFalse);

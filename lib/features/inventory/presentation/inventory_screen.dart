@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'widgets/inventory_dashboard_tab.dart';
+import 'widgets/inventory_holdings_tab.dart';
 import 'widgets/inventory_items_tab.dart';
 import 'widgets/inventory_movements_tab.dart';
 import 'widgets/inventory_next_order_tab.dart';
@@ -17,7 +18,7 @@ class InventoryScreen extends StatefulWidget {
 }
 
 class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProviderStateMixin {
-  late final TabController _tabController = TabController(length: 6, vsync: this);
+  late final TabController _tabController = TabController(length: 7, vsync: this);
 
   @override
   void dispose() {
@@ -38,7 +39,8 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
             Tab(text: 'Dashboard'),
             Tab(text: 'Items'),
             Tab(text: 'Movements'),
-            Tab(text: 'Sites'),
+            Tab(text: 'Employee Holdings'),
+            Tab(text: 'Site Holdings'),
             Tab(text: 'Damaged'),
             Tab(text: 'Next Order'),
           ],
@@ -52,6 +54,7 @@ class _InventoryScreenState extends State<InventoryScreen> with SingleTickerProv
               InventoryDashboardTab(),
               InventoryItemsTab(),
               InventoryMovementsTab(),
+              InventoryHoldingsTab(),
               InventorySitesTab(),
               InventoryMovementsTab(damagedOnly: true),
               InventoryNextOrderTab(),

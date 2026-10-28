@@ -4,49 +4,64 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_data_table.dart';
 import '../../application/inventory_providers.dart';
-import '../../domain/stock_summary.dart';
 import 'inventory_export_button.dart';
 
-/// "Uniforms at each site" — item × site matrix with a Total column.
+/// "Site Holdings" — site × item matrix of the stock held at each site,
+/// with a Total column. Only sites holding something are listed. Stock
+/// with employees who have no Site set is grouped under a blank site name,
+/// listed last.
 class InventorySitesTab extends ConsumerWidget {
   const InventorySitesTab({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final sites = sitesOf(ref.watch(inventoryMovementsProvider).value ?? const []);
-
     return ref
         .watch(inventoryStockProvider)
         .when(
           data: (stockById) {
             final stock = stockById.values.toList();
-            final headers = ['S.No.', 'Item', ...sites, 'Total'];
-            List<String> rowOf(int index, ItemStock s) => [
-              '${index + 1}',
-              s.item.displayName,
-              for (final site in sites) '${s.atSite[site] ?? 0}',
-              '${s.atSitesTotal}',
-            ];
+            final sites =
+                {
+                  for (final s in stock)
+                    for (final entry in s.atSite.entries)
+                      if (entry.value != 0) entry.key,
+                }.toList()..sort((a, b) {
+                  if (a.isEmpty != b.isEmpty) return a.isEmpty ? 1 : -1;
+                  return a.toLowerCase().compareTo(b.toLowerCase());
+                });
+
+            final headers = ['S.No.', 'Site', for (final s in stock) s.item.displayName, 'Total'];
+            List<String> rowOf(int index, String site) {
+              final quantities = [for (final s in stock) s.atSite[site] ?? 0];
+              return [
+                '${index + 1}',
+                site,
+                for (final q in quantities) '$q',
+                '${quantities.fold(0, (total, q) => total + q)}',
+              ];
+            }
 
             return AppCard(
-              title: 'Uniforms at Each Site',
+              title: 'Site Holdings',
               trailing: InventoryExportButton(
-                title: 'Uniforms at Each Site',
+                title: 'Site Holdings',
                 headers: headers,
-                rows: () => [for (final (index, s) in stock.indexed) rowOf(index, s)],
+                rows: () => [for (final (index, site) in sites.indexed) rowOf(index, site)],
               ),
               child: sites.isEmpty
                   ? const Padding(
                       padding: EdgeInsets.symmetric(vertical: 30),
-                      child: Center(child: Text('Issue items to a site in Movements and they will show here.')),
+                      child: Center(
+                        child: Text('Issue items to an employee in Movements and their site will show here.'),
+                      ),
                     )
                   : AppDataTable(
                       columns: [for (final h in headers) DataColumn(label: Text(h))],
                       rows: [
-                        for (final (index, s) in stock.indexed)
+                        for (final (index, site) in sites.indexed)
                           DataRow(
                             cells: [
-                              for (final (col, value) in rowOf(index, s).indexed)
+                              for (final (col, value) in rowOf(index, site).indexed)
                                 DataCell(
                                   Text(
                                     value,
