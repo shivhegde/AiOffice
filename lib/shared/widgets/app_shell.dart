@@ -8,6 +8,7 @@ import '../../features/users/application/user_providers.dart';
 import '../../features/users/domain/app_user.dart';
 import '../../core/config/app_environment.dart';
 import '../../core/providers/firebase_providers.dart';
+import '../../features/system_control/presentation/maintenance_banner.dart';
 import 'environment_banner.dart';
 import 'licence_expiry_banner.dart';
 import 'sidebar_nav.dart';
@@ -27,6 +28,7 @@ const Map<String, (String, String)> _titles = {
   '/admin/audit-log': ('Audit Log', 'System activity trail — Admin only'),
   '/admin/app-version': ('App Version', 'Allowed app-version range — Admin only'),
   '/admin/licence': ('Licence', 'App-wide licence expiry date — Admin only'),
+  '/admin/system-control': ('System Control', 'Maintenance mode & force refresh — Admin only'),
 };
 
 /// Persistent sidebar + top bar shell wrapping every authenticated route,
@@ -77,6 +79,7 @@ class AppShell extends ConsumerWidget {
                   ),
                 ),
                 const EnvironmentBanner(),
+                const MaintenanceBanner(),
                 const LicenceExpiryBanner(),
                 Expanded(
                   child: Container(

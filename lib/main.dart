@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/app.dart';
 import 'core/config/app_environment.dart';
+import 'core/services/app_restart.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -24,5 +25,5 @@ Future<void> main() async {
     await FirebaseStorage.instance.useStorageEmulator(host, 9199);
   }
 
-  runApp(const ProviderScope(child: App()));
+  runApp(const RestartScope(child: ProviderScope(child: App())));
 }

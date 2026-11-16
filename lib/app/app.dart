@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/audit/domain/audit_entry.dart';
 import '../features/audit/presentation/audit_log_screen.dart';
 import '../features/auth/application/auth_providers.dart';
+import '../features/system_control/application/system_control_providers.dart';
+import '../features/system_control/presentation/system_control_gate.dart';
 import '../features/users/application/user_providers.dart';
 import '../features/version_gate/application/version_gate_providers.dart';
 import '../features/version_gate/presentation/version_blocked_screen.dart';
@@ -35,6 +37,14 @@ class _AppState extends ConsumerState<App> {
     // both sides, as either the flag or the profile can arrive last.
     ref.listenManual(currentAppUserProvider, (_, _) => _logPendingLogin());
     ref.listenManual(pendingLoginAuditProvider, (_, _) => _logPendingLogin());
+
+    // An admin's dismissal of the maintenance warning lasts until
+    // maintenance is switched off; the next maintenance window warns again.
+    ref.listenManual(systemControlConfigProvider, (_, next) {
+      if (next.value?.maintenanceMode == false) {
+        ref.read(maintenanceWarningAcknowledgedProvider.notifier).state = false;
+      }
+    });
   }
 
   void _logPendingLogin() {
@@ -72,7 +82,7 @@ class _AppState extends ConsumerState<App> {
         if (gate.status == VersionGateStatus.belowMin || gate.status == VersionGateStatus.aboveMax) {
           return VersionBlockedScreen(result: gate);
         }
-        return child ?? const SizedBox.shrink();
+        return SystemControlGate(child: child ?? const SizedBox.shrink());
       },
     );
   }

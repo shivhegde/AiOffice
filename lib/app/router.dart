@@ -12,6 +12,7 @@ import '../features/inventory/presentation/inventory_screen.dart';
 import '../features/inward_outward/presentation/inward_outward_screen.dart';
 import '../features/audit/presentation/audit_log_screen.dart';
 import '../features/licence/presentation/licence_settings_screen.dart';
+import '../features/system_control/presentation/system_control_screen.dart';
 import '../features/tender_emd/presentation/tender_emd_screen.dart';
 import '../features/users/application/user_providers.dart';
 import '../features/vehicle_insurance/presentation/vehicle_insurance_screen.dart';
@@ -65,6 +66,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/admin/audit-log', builder: (context, state) => const AuditLogScreen()),
           GoRoute(path: '/admin/app-version', builder: (context, state) => const AppVersionSettingsScreen()),
           GoRoute(path: '/admin/licence', builder: (context, state) => const LicenceSettingsScreen()),
+          GoRoute(path: '/admin/system-control', builder: (context, state) => const SystemControlScreen()),
         ],
       ),
     ],

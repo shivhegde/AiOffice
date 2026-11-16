@@ -23,6 +23,7 @@ class FirestorePaths {
   static const appConfig = 'app_config';
   static const versionGateDocId = 'version_gate';
   static const licenceDocId = 'licence';
+  static const systemControlDocId = 'system_control';
 }
 
 /// Cloud Storage path convention for Inward/Outward file uploads:

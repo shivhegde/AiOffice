@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../app/theme/app_colors.dart';
 import '../../../app/theme/app_text_theme.dart';
 import '../application/auth_providers.dart';
+import '../../system_control/presentation/maintenance_banner.dart';
 import '../data/auth_repository.dart';
 import 'widgets/password_field.dart';
 
@@ -127,6 +128,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       style: TextStyle(fontSize: 12.8, color: colors.textMuted),
                     ),
                     const SizedBox(height: 22),
+                    const MaintenanceLoginNotice(),
                     const _FieldLabel('Email address'),
                     TextField(
                       controller: _emailController,
