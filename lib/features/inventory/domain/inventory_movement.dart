@@ -40,6 +40,7 @@ class InventoryMovement {
     this.employeeName = '',
     this.employeeRole = '',
     this.note = '',
+    this.writeOffFromStore = false,
     required this.createdBy,
     required this.createdByName,
     this.createdAt,
@@ -68,6 +69,12 @@ class InventoryMovement {
 
   final String note;
 
+  /// Damaged/Lost entries recorded with the store rule: always come off
+  /// the main store, and also off [site] when one is given. False for
+  /// write-offs recorded before that rule, which keep their original
+  /// effect (off the site/employee, or off store when neither was given).
+  final bool writeOffFromStore;
+
   final String createdBy;
   final String createdByName;
   final DateTime? createdAt;
@@ -86,6 +93,7 @@ class InventoryMovement {
       employeeName: data['employeeName'] as String? ?? '',
       employeeRole: data['employeeRole'] as String? ?? '',
       note: data['note'] as String? ?? '',
+      writeOffFromStore: data['writeOffFromStore'] as bool? ?? false,
       createdBy: data['createdBy'] as String? ?? '',
       createdByName: data['createdByName'] as String? ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
@@ -105,6 +113,7 @@ class InventoryMovement {
       'employeeName': employeeName,
       'employeeRole': employeeRole,
       'note': note,
+      if (writeOffFromStore) 'writeOffFromStore': true,
       'createdBy': createdBy,
       'createdByName': createdByName,
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),

@@ -119,6 +119,7 @@ class InventoryRepository {
       employeeName: draft.employeeName,
       employeeRole: draft.employeeRole,
       note: draft.note,
+      writeOffFromStore: draft.writeOffFromStore,
       createdBy: actorUid,
       createdByName: actorName,
     );
@@ -130,6 +131,25 @@ class InventoryRepository {
       module: 'inventory',
       targetId: draft.itemId,
       targetLabel: '${draft.itemLabel} — ${draft.type.label} ${draft.qty} (${formatDisplayDate(draft.date)})',
+    );
+  }
+
+  /// Saves a corrected movement over the original (same id), keeping who
+  /// recorded it and when.
+  Future<void> updateMovement({
+    required InventoryMovement movement,
+    required String actorUid,
+    required String actorName,
+  }) async {
+    await _movements.doc(movement.id).set(movement.toMap());
+    await _auditLog.log(
+      actorUid: actorUid,
+      actorName: actorName,
+      action: AuditAction.update,
+      module: 'inventory',
+      targetId: movement.itemId,
+      targetLabel:
+          '${movement.itemLabel} — ${movement.type.label} ${movement.qty} (${formatDisplayDate(movement.date)}) edited',
     );
   }
 

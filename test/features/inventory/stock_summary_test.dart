@@ -144,4 +144,29 @@ void main() {
       ['Alpha', 'beta'],
     );
   });
+
+  test('write-offs under the store rule reduce store, plus the site when given', () {
+    InventoryMovement writeOff(int qty, {String site = ''}) => InventoryMovement(
+      id: '',
+      itemId: 'a',
+      itemLabel: 'Shirt (M)',
+      date: DateTime(2026, 11, 1),
+      type: MovementType.damaged,
+      qty: qty,
+      site: site,
+      writeOffFromStore: true,
+      createdBy: 'u',
+      createdByName: 'U',
+    );
+    final stock = computeStock(
+      [_item('a', opening: 10)],
+      [_move('a', MovementType.issueToSite, 4, site: 'Site A'), writeOff(1), writeOff(2, site: 'Site A')],
+    )['a']!;
+    expect(stock.inStore, 10 - 4 - 1 - 2);
+    expect(stock.atSite, {'Site A': 4 - 2});
+    expect(stock.damaged, 3);
+    // Limited by the smaller of store and site.
+    expect(stock.availableFor(MovementType.damaged, 'Site A'), 2);
+    expect(stock.availableFor(MovementType.damaged, ''), 3);
+  });
 }

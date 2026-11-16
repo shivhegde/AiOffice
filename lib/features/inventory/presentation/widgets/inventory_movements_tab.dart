@@ -101,7 +101,22 @@ class InventoryMovementsTab extends ConsumerWidget {
                               ),
                             ),
                             DataCell(Text(m.createdByName)),
-                            DataCell(_DeleteMovementButton(movement: m)),
+                            DataCell(
+                              RoleGate(
+                                minRole: AppRole.powerUser,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined, size: 17),
+                                      tooltip: 'Edit',
+                                      onPressed: () => MovementFormSlideover.show(context, existing: m),
+                                    ),
+                                    _DeleteMovementButton(movement: m),
+                                  ],
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                     ],

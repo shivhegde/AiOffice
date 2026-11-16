@@ -10,6 +10,7 @@ import 'package:aioffice/features/inventory/domain/inventory_movement.dart';
 import 'package:aioffice/features/inventory/domain/stock_summary.dart';
 import 'package:aioffice/features/inventory/presentation/movement_form_slideover.dart';
 import 'package:aioffice/features/users/application/user_providers.dart';
+import 'package:aioffice/shared/widgets/slideover_panel.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -218,5 +219,144 @@ void main() {
     final saved = (await _saved(firestore)).single;
     expect(saved['employeeDocId'], 'emp-1');
     expect(saved['site'], 'Site A');
+  });
+
+  testWidgets('Damaged with a typed Site comes off that site and the main store', (tester) async {
+    // Site A holds 5 (from store's 10), none of it with a linked employee.
+    final firestore = await _openForm(tester, MovementType.damaged, movements: [_issued(employeeDocId: '', qty: 5)]);
+    await tester.enterText(find.widgetWithText(TextField, 'Blank = main store'), 'Site A');
+    await tester.pumpAndSettle();
+    final roleField = find.descendant(of: find.widgetWithText(FormRowLabel, 'Role'), matching: find.byType(TextField));
+    await tester.enterText(roleField, 'Guard');
+    await _save(tester);
+
+    final saved = (await _saved(firestore)).single;
+    expect(saved['site'], 'Site A');
+    expect(saved['employeeRole'], 'Guard');
+    expect(saved['writeOffFromStore'], true);
+    final stock = computeStock(
+      [_item()],
+      [_issued(employeeDocId: '', qty: 5), InventoryMovement.fromMap('m1', saved)],
+    )['item-1']!;
+    expect(stock.atSite['Site A'], 4);
+    expect(stock.inStore, 4);
+    expect(stock.damaged, 1);
+  });
+
+  testWidgets('Picking an employee pre-fills the editable Site and Role on Damaged', (tester) async {
+    await _openForm(tester, MovementType.damaged, movements: [_issued(employeeDocId: 'emp-1', qty: 2)]);
+    await _pickEmployee(tester);
+    expect(find.widgetWithText(TextField, 'Site A'), findsOneWidget);
+    expect(find.widgetWithText(TextField, 'Guard'), findsOneWidget);
+  });
+
+  group('editing', () {
+    InventoryMovement received(int qty) => InventoryMovement(
+      id: 'r1',
+      itemId: 'item-1',
+      itemLabel: 'Shirt (M)',
+      date: DateTime(2026, 10, 1),
+      type: MovementType.received,
+      qty: qty,
+      note: 'Supplier X',
+      createdBy: 'actor-1',
+      createdByName: 'Actor One',
+    );
+
+    Future<FakeFirebaseFirestore> openEdit(
+      WidgetTester tester,
+      InventoryMovement existing, {
+      List<InventoryMovement> others = const [],
+      int openingStock = 0,
+    }) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final firestore = FakeFirebaseFirestore();
+      await firestore.collection('inventory_movements').doc(existing.id).set(existing.toMap());
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            currentAppUserProvider.overrideWith((ref) => Stream.value(null)),
+            employeeListProvider.overrideWith((ref) => Stream.value([_employee])),
+            inventoryListProvider.overrideWith((ref) => Stream.value([_item(openingStock: openingStock)])),
+            inventoryMovementsProvider.overrideWith((ref) => Stream.value([existing, ...others])),
+            inventoryRepositoryProvider.overrideWithValue(
+              InventoryRepository(firestore: firestore, auditLog: AuditLogRepository(firestore)),
+            ),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.light,
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => MovementFormSlideover.show(context, existing: existing),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      return firestore;
+    }
+
+    testWidgets('opens pre-filled and saves the correction over the same record', (tester) async {
+      final firestore = await openEdit(tester, received(5));
+      expect(find.text('Edit Movement'), findsOneWidget);
+      expect(find.widgetWithText(TextField, 'Supplier X'), findsOneWidget);
+
+      await tester.enterText(find.widgetWithText(TextField, '5'), '8');
+      await _save(tester);
+
+      final saved = await _saved(firestore);
+      expect(saved, hasLength(1));
+      expect(saved.single['qty'], 8);
+      expect(saved.single['createdBy'], 'actor-1');
+      expect(find.text('Movement updated.'), findsOneWidget);
+    });
+
+    testWidgets('keeps the original employee and site when only the quantity changes', (tester) async {
+      final issued = _issued(employeeDocId: 'emp-1', qty: 2);
+      final firestore = await openEdit(
+        tester,
+        InventoryMovement(
+          id: issued.id,
+          itemId: issued.itemId,
+          itemLabel: issued.itemLabel,
+          date: issued.date,
+          type: issued.type,
+          qty: 2,
+          site: 'Old Site',
+          employeeDocId: 'emp-1',
+          employeeId: 'EMP/2026/0001',
+          employeeName: 'Ravi Kumar',
+          employeeRole: 'Guard',
+          createdBy: 'actor-1',
+          createdByName: 'Actor One',
+        ),
+        openingStock: 10,
+      );
+      await tester.enterText(find.widgetWithText(TextField, '2'), '3');
+      await _save(tester);
+
+      final saved = (await _saved(firestore)).single;
+      expect(saved['qty'], 3);
+      expect(saved['employeeDocId'], 'emp-1');
+      expect(saved['site'], 'Old Site');
+    });
+
+    testWidgets('refuses an edit that would leave later movements without stock', (tester) async {
+      // 5 received, 4 of them issued afterwards: the receipt can't drop to 3.
+      final firestore = await openEdit(tester, received(5), others: [_issued(employeeDocId: 'emp-1', qty: 4)]);
+      await tester.enterText(find.widgetWithText(TextField, '5'), '3');
+      await _save(tester);
+
+      expect(find.textContaining('Cannot save'), findsOneWidget);
+      expect((await _saved(firestore)).single['qty'], 5);
+    });
   });
 }
