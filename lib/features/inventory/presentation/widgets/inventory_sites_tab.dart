@@ -9,7 +9,7 @@ import 'inventory_export_button.dart';
 /// "Site Holdings" — site × item matrix of the stock held at each site,
 /// with a Total column. Only sites holding something are listed. Stock
 /// with employees who have no Site set is grouped under a blank site name,
-/// listed last.
+/// shown as "NO SITE NAME" and listed last.
 class InventorySitesTab extends ConsumerWidget {
   const InventorySitesTab({super.key});
 
@@ -35,7 +35,7 @@ class InventorySitesTab extends ConsumerWidget {
               final quantities = [for (final s in stock) s.atSite[site] ?? 0];
               return [
                 '${index + 1}',
-                site,
+                site.isEmpty ? 'NO SITE NAME' : site,
                 for (final q in quantities) '$q',
                 '${quantities.fold(0, (total, q) => total + q)}',
               ];

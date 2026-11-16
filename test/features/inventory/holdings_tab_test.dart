@@ -116,7 +116,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Site Holdings lists each site with a column per item, blank site last', (tester) async {
+  testWidgets('Site Holdings lists each site with a column per item, blank site last as NO SITE NAME', (tester) async {
     tester.view.physicalSize = const Size(1600, 1000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -153,7 +153,7 @@ void main() {
     expect(table.rows.map(cells).toList(), [
       ['1', 'Site A', '0', '1', '1'],
       ['2', 'Site B', '3', '0', '3'],
-      ['3', '', '2', '4', '6'],
+      ['3', 'NO SITE NAME', '2', '4', '6'],
     ]);
     expect(tester.takeException(), isNull);
   });
