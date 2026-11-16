@@ -253,7 +253,14 @@ class _IoFormState extends ConsumerState<_IoForm> {
 
       final repo = ref.read(ioRepositoryProvider);
       if (_isEditing) {
-        await repo.update(document: draft, actorUid: actorUid, actorName: actorName);
+        await repo.update(
+          document: draft,
+          actorUid: actorUid,
+          actorName: actorName,
+          fileBytes: _pendingFile?.bytes,
+          fileName: _pendingFile?.name,
+          fileContentType: _pendingFile?.contentType,
+        );
       } else {
         final created = await repo.create(
           draft: draft,

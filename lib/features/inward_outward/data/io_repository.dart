@@ -121,12 +121,45 @@ class IoRepository {
     return toSave;
   }
 
+  /// Updates an existing entry. When [fileBytes]/[fileName] are given (the
+  /// user picked a replacement file in edit mode), the new file is uploaded
+  /// first, the document's file fields are pointed at it, and the previous
+  /// file is removed from Storage (best effort) once the write succeeds.
   Future<void> update({
     required IoDocument document,
     required String actorUid,
     required String actorName,
+    Uint8List? fileBytes,
+    String? fileName,
+    String? fileContentType,
   }) async {
-    await _collection.doc(document.id).update(document.toMap());
+    final data = document.toMap();
+    String? replacedPath;
+    if (fileBytes != null && fileName != null) {
+      final newPath = 'inward_outward/${document.type.wireValue}/${document.year}/${document.id}/$fileName';
+      await _storage.uploadBytes(
+        path: newPath,
+        bytes: fileBytes,
+        contentType: fileContentType ?? 'application/octet-stream',
+      );
+      data['storagePath'] = newPath;
+      data['fileName'] = fileName;
+      data['fileContentType'] = fileContentType ?? 'application/octet-stream';
+      data['fileSizeBytes'] = fileBytes.length;
+      if (document.hasFile && document.storagePath != newPath) {
+        replacedPath = document.storagePath;
+      }
+    }
+
+    await _collection.doc(document.id).update(data);
+
+    if (replacedPath != null) {
+      try {
+        await _storage.delete(replacedPath);
+      } catch (_) {
+        // Orphaned old file is harmless; the document already points at the new one.
+      }
+    }
     await _auditLog.log(
       actorUid: actorUid,
       actorName: actorName,
