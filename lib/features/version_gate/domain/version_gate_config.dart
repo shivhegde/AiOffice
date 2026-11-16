@@ -22,7 +22,7 @@ class VersionGateConfig {
   final DateTime? updatedAt;
   final String? updatedByName;
 
-  static const defaultBlockMessage = 'A newer version of OfficeAI is required. Please install the latest build.';
+  static const defaultBlockMessage = 'A newer version of Vishwas Security Services is required. Please install the latest build.';
 
   /// Absence of a document (never configured yet) means "allow everything"
   /// — fail-open, not fail-closed, since write access requires an admin to

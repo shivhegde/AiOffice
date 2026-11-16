@@ -70,7 +70,7 @@ class _AppState extends ConsumerState<App> {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'OfficeAI',
+      title: 'Vishwas Security Services',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,

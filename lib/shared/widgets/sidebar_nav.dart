@@ -85,7 +85,7 @@ class SidebarNav extends ConsumerWidget {
                     height: 32,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(color: const Color(0xFFB8791E), borderRadius: BorderRadius.circular(7)),
-                    child: Text('O', style: AppFonts.serif(fontWeight: FontWeight.w700, color: colors.onAccent)),
+                    child: Text('V', style: AppFonts.serif(fontWeight: FontWeight.w700, color: colors.onAccent)),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -93,7 +93,7 @@ class SidebarNav extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'OfficeAI',
+                          'Vishwas Security Services',
                           style: AppFonts.serif(fontWeight: FontWeight.w700, fontSize: 16.5, color: const Color(0xFFEDE7D6)),
                         ),
                         Text(

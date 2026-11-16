@@ -103,20 +103,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             borderRadius: BorderRadius.circular(7),
                           ),
                           child: Text(
-                            'O',
+                            'V',
                             style: AppFonts.serif(fontWeight: FontWeight.w700, color: colors.onAccent),
                           ),
                         ),
                         const SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('OfficeAI', style: AppFonts.serif(fontWeight: FontWeight.w700, fontSize: 16.5)),
-                            Text(
-                              'REGISTRY & TASK CONSOLE',
-                              style: TextStyle(fontSize: 10.5, letterSpacing: 0.8, color: colors.textMuted),
-                            ),
-                          ],
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Vishwas Security Services', style: AppFonts.serif(fontWeight: FontWeight.w700, fontSize: 16.5)),
+                              Text(
+                                'REGISTRY & TASK CONSOLE',
+                                style: TextStyle(fontSize: 10.5, letterSpacing: 0.8, color: colors.textMuted),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
