@@ -70,10 +70,10 @@ class IoDocument {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  /// Acknowledgement flag toggled by `power_user`/`manager`/`admin` (see
+  /// Acknowledgement flag toggled by `manager`/`admin` only (see
   /// [AppRole]) so other users can confirm the document has been
-  /// reviewed. General Users see it read-only — see `IoRepository.setSeen`
-  /// and `canManageDocuments()` in firestore.rules.
+  /// reviewed. General Users and Power Users see it read-only — see
+  /// `IoRepository.setSeen` and `canMarkSeen()` in firestore.rules.
   final bool seen;
 
   bool get hasFile => storagePath != null && storagePath!.isNotEmpty;

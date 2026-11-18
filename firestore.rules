@@ -20,6 +20,11 @@ service cloud.firestore {
       return activeRole() == 'admin' || activeRole() == 'manager' || activeRole() == 'power_user';
     }
     function isKnownUser() { return activeRole() != null; }
+    // The Inward/Outward "Seen" acknowledgement is reserved for manager and
+    // admin — power_user can manage documents but must not set or reset it.
+    function canMarkSeen() {
+      return activeRole() == 'admin' || activeRole() == 'manager';
+    }
 
     match /users/{uid} {
       allow read: if signedIn();
@@ -48,8 +53,11 @@ service cloud.firestore {
 
     match /inward_outward_documents/{docId} {
       allow read: if isKnownUser();
-      allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid;
-      allow update, delete: if canManageDocuments();
+      allow create: if canManageDocuments() && request.resource.data.createdBy == request.auth.uid
+                    && (canMarkSeen() || request.resource.data.get('seen', false) == false);
+      allow update: if canManageDocuments()
+                    && (canMarkSeen() || request.resource.data.get('seen', false) == resource.data.get('seen', false));
+      allow delete: if canManageDocuments();
     }
 
     // Followup entries for Inward/Outward documents, one doc per followup,

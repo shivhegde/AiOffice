@@ -3,12 +3,10 @@
 /// `users/{uid}.role`.
 ///
 /// `manager` outranks `power_user`: a Manager can do everything a Power
-/// User can (create/edit/delete Inward/Outward documents) plus toggle the
-/// "Seen" acknowledgement flag (see [IoDocument.seen]) — though since
-/// "Seen" is just another document field, Power User already had the
-/// ability to set it via a full edit; Manager doesn't gain a capability
-/// Power User lacked, it's simply ranked above it. `admin` still outranks
-/// both.
+/// User can (create/edit/delete records in every module) plus set or reset
+/// the Inward/Outward "Seen" acknowledgement flag (see [IoDocument.seen]),
+/// which Power User cannot (`canMarkSeen()` in firestore.rules). `admin`
+/// still outranks both.
 enum AppRole {
   generalUser('general_user', 0),
   powerUser('power_user', 1),

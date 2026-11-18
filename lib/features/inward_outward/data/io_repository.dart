@@ -171,12 +171,9 @@ class IoRepository {
   }
 
   /// Toggles the "Seen" acknowledgement flag — used from the checkbox
-  /// shown to `power_user`/`manager`/`admin` (see `_SeenCell`). Writes only
-  /// `{seen, updatedAt}` rather than the full [IoDocument.toMap] to keep
-  /// the payload minimal; [update] would also work since those roles have
-  /// full document-write rights (`canManageDocuments()` in
-  /// firestore.rules), but this avoids re-sending every other field for a
-  /// single-checkbox interaction.
+  /// shown only to `manager`/`admin` (see `_SeenCell`; enforced by
+  /// `canMarkSeen()` in firestore.rules). Writes only `{seen, updatedAt}`
+  /// to keep the payload minimal for a single-checkbox interaction.
   Future<void> setSeen({
     required IoDocument document,
     required bool seen,

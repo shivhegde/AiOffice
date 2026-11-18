@@ -220,11 +220,9 @@ class _RowActions extends ConsumerWidget {
 }
 
 /// "Seen" acknowledgement (see [AppRole.manager], [IoDocument.seen]).
-/// Power User, Manager, and Admin get an interactive checkbox (manager
-/// outranks power_user but inherits all of its rights, see
-/// firestore.rules `canManageDocuments()`); General User sees a read-only
-/// indicator, since only those three roles can write this field
-/// server-side.
+/// Only Manager and Admin get an interactive checkbox — firestore.rules
+/// `canMarkSeen()` rejects any change to this field from other roles.
+/// General User and Power User see a read-only indicator.
 class _SeenCell extends ConsumerWidget {
   const _SeenCell({required this.document});
 
@@ -235,7 +233,7 @@ class _SeenCell extends ConsumerWidget {
     final role = ref.watch(effectiveRoleProvider);
     final colors = context.appColors;
 
-    if (!role.isAtLeast(AppRole.powerUser)) {
+    if (!role.isAtLeast(AppRole.manager)) {
       return Icon(
         document.seen ? Icons.check_circle : Icons.radio_button_unchecked,
         size: 18,
